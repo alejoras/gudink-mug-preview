@@ -792,8 +792,20 @@ offYEl.addEventListener('input', () => {
   drawTexture();
 });
 
-document.getElementById('body-color').addEventListener('input', (e) => {
-  updateBodyColor(e.target.value);
+// Color swatches (Blanco / Negro). Two-color picker — we only stock
+// these SKUs, so an unbounded color picker would expose options users
+// can't actually buy.
+document.querySelectorAll('.color-swatch').forEach((sw) => {
+  sw.addEventListener('click', () => {
+    const color = sw.dataset.color;
+    if (!color) return;
+    updateBodyColor(color);
+    document.querySelectorAll('.color-swatch').forEach((s) => {
+      const isActive = s === sw;
+      s.classList.toggle('is-active', isActive);
+      s.setAttribute('aria-checked', String(isActive));
+    });
+  });
 });
 
 // Wrap mode is hard-coded to 'front' (panel frontal 270°) in v1 — covers

@@ -153,9 +153,15 @@
           <div class="control-label">
             <span>Color de la taza</span>
           </div>
-          <div class="color-row">
-            <input type="color" id="body-color" value="#ffffff">
-            <span class="color-hint">Blanco por default</span>
+          <div class="color-swatches" role="radiogroup" aria-label="Color de la taza">
+            <button type="button" class="color-swatch is-active" data-color="#ffffff" role="radio" aria-checked="true" aria-label="Blanco">
+              <span class="color-swatch-circle" data-tone="light"></span>
+              <span class="color-swatch-name">Blanco</span>
+            </button>
+            <button type="button" class="color-swatch" data-color="#1a1a1a" role="radio" aria-checked="false" aria-label="Negro">
+              <span class="color-swatch-circle" data-tone="dark"></span>
+              <span class="color-swatch-name">Negro</span>
+            </button>
           </div>
         </div>
 
