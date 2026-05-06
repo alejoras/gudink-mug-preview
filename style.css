@@ -1126,27 +1126,11 @@ body.dragging .drop-hint { display: flex; }
 
 /* ========== Responsive ========== */
 
-/* Narrower viewports: scale the live-mini down so it overlaps less of
-   the centered canvas. Canvas position itself is NEVER shifted — the
-   mini just gets smaller. Per product call, accepting some canvas
-   overlap is preferred over breaking center alignment. */
-@media (max-width: 1280px) {
-  .canvas-preview--mini {
-    width: 180px;
-    height: 180px;
-    bottom: 18px;
-    right: 18px;
-  }
-}
-
-@media (max-width: 1024px) {
-  .canvas-preview--mini {
-    width: 140px;
-    height: 140px;
-    bottom: 14px;
-    right: 14px;
-  }
-}
+/* The live-mini stays at fixed 220×220 across all viewports above the
+   720px mobile gate. Canvas stays centered. At narrower widths the mini
+   simply sits ON TOP of the canvas's bottom-right corner — accepted as
+   the trade-off vs. shifting the canvas off-center or shrinking the
+   mini (which made the live preview feel marginal at smaller screens). */
 
 @media (max-width: 900px) {
   .topbar-title { max-width: 26vw; font-size: 13px; }
