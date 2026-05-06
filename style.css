@@ -1,0 +1,1179 @@
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #1a1a1a;
+  background: #f5f4f1;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+input[type="range"] { accent-color: #1a1a1a; }
+input, select { font: inherit; }
+
+/* ========== App shell ========== */
+.app {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 56px 1fr 64px;
+  background: #f5f4f1;
+}
+
+/* ========== Top bar ========== */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: #fff;
+  border-bottom: 1px solid #ececea;
+  z-index: 5;
+}
+
+.topbar-cluster {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.topbar-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #444;
+  transition: background 0.12s, border-color 0.12s;
+}
+.topbar-icon:hover { background: #f4f3f0; border-color: #e6e5e2; }
+
+.topbar-divider {
+  width: 1px;
+  height: 24px;
+  background: #ececea;
+  margin: 0 4px;
+}
+
+.topbar-title {
+  margin-left: 8px;
+  font-size: 14px;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 36vw;
+}
+
+/* Edit / Preview pill toggle */
+.view-toggle {
+  display: inline-flex;
+  background: #f3f2ef;
+  border: 1px solid #e6e5e2;
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  font-size: 13px;
+  color: #5a5a5a;
+  transition: background 0.12s, color 0.12s;
+}
+.view-toggle-btn:hover { color: #1a1a1a; }
+.view-toggle-btn.is-active {
+  background: #1a1a1a;
+  color: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+}
+
+/* ========== Main row ========== */
+/* Explicit grid columns prevent the canvas from collapsing when side-panel
+   is display:none — without explicit grid-column assignments, auto-flow
+   pushes canvas-area into the auto-sized track, which collapses to 0. */
+.main-row {
+  display: grid;
+  grid-template-columns: 64px auto minmax(0, 1fr);
+  position: relative;
+  background: #f5f4f1;
+  overflow: hidden;
+}
+.leftbar { grid-column: 1; }
+.side-panel { grid-column: 2; }
+.canvas-area { grid-column: 3; }
+
+/* ========== Left bar ========== */
+.leftbar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 12px 6px;
+  gap: 4px;
+  background: #fff;
+  border-right: 1px solid #ececea;
+  z-index: 4;
+}
+
+.leftbar-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #4a4a4a;
+  font-size: 11px;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.leftbar-tab:hover { background: #f6f5f2; color: #1a1a1a; }
+.leftbar-tab.is-active {
+  background: #f0eee9;
+  color: #1a1a1a;
+}
+.leftbar-tab svg { display: block; }
+.leftbar-tab span { font-size: 11px; line-height: 1; }
+
+.leftbar-tab--small {
+  padding: 8px;
+  border-radius: 999px;
+  width: 36px;
+  height: 36px;
+  align-self: center;
+}
+
+.leftbar-spacer { flex: 1; }
+
+/* ========== Side panel (slides out from leftbar) ========== */
+.side-panel {
+  width: 280px;
+  background: #fff;
+  border-right: 1px solid #ececea;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.side-panel[hidden] { display: none; }
+
+.side-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f2ef;
+}
+
+.side-panel-title {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #888;
+  font-weight: 600;
+}
+
+.side-panel-close {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #666;
+}
+.side-panel-close:hover { background: #f4f3f0; color: #1a1a1a; }
+
+.side-panel-section {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.side-panel-section[hidden] { display: none; }
+
+.section-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+/* Sub-headers within a section (e.g. "Editar · Capa N", "Acciones") */
+.section-title--sub {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #888;
+}
+
+.section-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #888;
+  line-height: 1.4;
+}
+
+/* Upload dropzone */
+.upload-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 18px 16px;
+  border: 1.5px dashed #d8d6d2;
+  border-radius: 10px;
+  background: #fafaf8;
+  color: #555;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, opacity 0.12s;
+}
+.upload-dropzone:hover { border-color: #1a1a1a; background: #f3f2ef; }
+.upload-dropzone.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.dropzone-primary { font-size: 13px; color: #1a1a1a; }
+.dropzone-secondary { font-size: 11px; color: #999; }
+
+/* Layer count chip in section title */
+.layer-count {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 500;
+  color: #888;
+  background: #f3f2ef;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  vertical-align: 1px;
+}
+
+/* Layer list */
+.layer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.layer-list[hidden] { display: none; }
+.layer-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid #ececea;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.layer-item:hover { border-color: #d8d6d2; background: #fafaf8; }
+.layer-item.is-active {
+  border-color: #1a1a1a;
+  background: #fafaf8;
+  box-shadow: 0 0 0 1px #1a1a1a inset;
+}
+.layer-thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  flex-shrink: 0;
+  background: repeating-conic-gradient(#f0efea 0% 25%, #fafaf8 0% 50%) 50% / 8px 8px;
+  border-radius: 4px;
+}
+.layer-label {
+  flex: 1;
+  font-size: 12px;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.layer-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.layer-action-btn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: #888;
+}
+.layer-action-btn:hover { background: #f0eee9; color: #1a1a1a; }
+.layer-action-btn:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+.layer-action-btn--danger:hover {
+  background: #fdf2f2;
+  color: #c12c2c;
+}
+
+/* Editar capa — contextual subsection inside the Diseño tab. Shown only
+   when an active layer exists (toggled via [hidden]). Subtle visual
+   demarcation so it reads as "properties of the selected layer", not as
+   a peer of the layer list. */
+.editar-capa-section {
+  margin: 6px -16px 0;
+  padding: 14px 16px 4px;
+  background: #fafaf8;
+  border-top: 1px solid #ececea;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.editar-capa-section[hidden] { display: none; }
+
+/* Product info card — top of the Producto tab. Read-only, describes the
+   product being designed. Mirrors the Gudink site convention. */
+.product-info-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: #fafaf8;
+  border: 1px solid #ececea;
+  border-radius: 10px;
+}
+.product-info-thumb {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid #ececea;
+  border-radius: 8px;
+}
+.product-info-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.product-info-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+.product-info-desc {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #888;
+}
+.product-info-meta {
+  margin: 6px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+}
+.product-info-meta > div {
+  display: flex;
+  gap: 6px;
+}
+.product-info-meta dt {
+  flex: 0 0 auto;
+  color: #999;
+  font-weight: 400;
+}
+.product-info-meta dt::after { content: ":"; }
+.product-info-meta dd {
+  margin: 0;
+  color: #1a1a1a;
+}
+.product-info-price {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Primary export button (Producto > Acciones) */
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 14px;
+  background: #1a1a1a;
+  color: #fff;
+  border: 1px solid #1a1a1a;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.12s;
+}
+.primary-btn:hover { background: #2c2c2c; }
+.primary-btn svg { flex-shrink: 0; }
+
+/* Controls (sliders + selects) */
+.control { display: flex; flex-direction: column; gap: 6px; }
+.control-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #4a4a4a;
+}
+.control-val {
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: #888;
+}
+.control input[type="range"] { width: 100%; }
+.control select {
+  padding: 8px 10px;
+  border: 1px solid #d8d6d2;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+}
+.control--actions { flex-direction: row; gap: 6px; }
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.color-row input[type="color"] {
+  width: 40px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #d8d6d2;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+.color-hint { font-size: 12px; color: #999; }
+
+.ghost-btn {
+  flex: 1;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #d8d6d2;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1a1a1a;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ghost-btn:hover { background: #f6f5f2; }
+.ghost-btn--small { flex: 0 0 auto; padding: 8px 12px; }
+.ghost-btn--danger { color: #c12c2c; border-color: #ecc6c6; }
+.ghost-btn--danger:hover { background: #fdf2f2; border-color: #c12c2c; }
+
+/* Quick action buttons (Centrar / Ajustar / Llenar) */
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.quick-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 4px;
+  background: #fff;
+  border: 1px solid #d8d6d2;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #1a1a1a;
+}
+.quick-btn:hover { background: #f6f5f2; }
+.quick-btn:active { background: #f0eee9; }
+
+.control-divider {
+  border: 0;
+  border-top: 1px solid #f0efea;
+  margin: 6px 0;
+}
+
+/* ========== Canvas area ========== */
+.canvas-area {
+  position: relative;
+  background: #f5f4f1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.canvas-edit {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  gap: 14px;
+}
+.canvas-edit[hidden] { display: none; }
+
+/* Mouse-following grid background (behind .ed2-frame).
+   Base layer: always-on, very subtle.
+   Reveal layer: brighter, revealed via a radial mask that tracks the cursor.
+   Both share a 40px grid pattern animated by main.js for a slow scroll. */
+.ed2-grid-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  color: #1a1a1a;
+}
+.ed2-grid-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.ed2-grid-layer--base {
+  opacity: 0.07;
+}
+.ed2-grid-layer--reveal {
+  opacity: 0.32;
+  mask-image: radial-gradient(280px circle at var(--mouse-x, -500px) var(--mouse-y, -500px), black, transparent 70%);
+  -webkit-mask-image: radial-gradient(280px circle at var(--mouse-x, -500px) var(--mouse-y, -500px), black, transparent 70%);
+}
+/* Frame paints above the grid layers. */
+.ed2-frame {
+  width: 100%;
+  max-width: 920px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Mug-orientation icons — positioned absolutely at 25/50/75% so they
+   align with the 3 vertical centerline guides below. */
+.ed2-icons {
+  position: relative;
+  height: 56px;
+  margin-bottom: 8px;
+}
+.ed2-mug {
+  position: absolute;
+  top: 0;
+  width: 56px;
+  height: 50px;
+  transform: translateX(-50%);
+  background: no-repeat center / contain;
+  opacity: 0.7;
+}
+.ed2-mug--left {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 32' fill='none' stroke='%23a3a3a3' stroke-width='1.2' stroke-linecap='round'><rect x='13' y='4' width='18' height='24' rx='1.5'/><path d='M13 9 a4 4 0 0 0 0 14' stroke-width='1.4'/><rect x='16' y='8' width='12' height='16' fill='none' stroke='%2384c184' stroke-width='1.4'/><line x1='22' y1='8' x2='22' y2='24' stroke='%2384c184' stroke-width='1' stroke-dasharray='2 2'/><circle cx='22' cy='8' r='0.9' fill='%2384c184' stroke='none'/><circle cx='22' cy='24' r='0.9' fill='%2384c184' stroke='none'/></svg>");
+}
+.ed2-mug--front {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 32' fill='none' stroke='%23a3a3a3' stroke-width='1.2' stroke-linecap='round'><rect x='8' y='4' width='20' height='24' rx='1.5'/><rect x='11' y='8' width='14' height='16' fill='none' stroke='%2384c184' stroke-width='1.4'/><line x1='18' y1='8' x2='18' y2='24' stroke='%2384c184' stroke-width='1' stroke-dasharray='2 2'/><circle cx='18' cy='8' r='0.9' fill='%2384c184' stroke='none'/><circle cx='18' cy='24' r='0.9' fill='%2384c184' stroke='none'/></svg>");
+}
+.ed2-mug--right {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 32' fill='none' stroke='%23a3a3a3' stroke-width='1.2' stroke-linecap='round'><rect x='5' y='4' width='18' height='24' rx='1.5'/><path d='M23 9 a4 4 0 0 1 0 14' stroke-width='1.4'/><rect x='8' y='8' width='12' height='16' fill='none' stroke='%2384c184' stroke-width='1.4'/><line x1='14' y1='8' x2='14' y2='24' stroke='%2384c184' stroke-width='1' stroke-dasharray='2 2'/><circle cx='14' cy='8' r='0.9' fill='%2384c184' stroke='none'/><circle cx='14' cy='24' r='0.9' fill='%2384c184' stroke='none'/></svg>");
+}
+
+.ed2-canvas-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2.65 / 1;
+  background: #fff;
+  border: 1px solid #d8d6d2;
+  /* overflow:visible so bbox corner handles are visible even when image
+     reaches the canvas edges. The texture canvas underneath is a real
+     <canvas> so its raster stays clipped to its own bounds. */
+  overflow: visible;
+  border-radius: 6px;
+  user-select: none;
+  touch-action: none;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+}
+.ed2-canvas-wrap canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+/* Print-area / safe-zone — uniform ~1 mm bleed on all four sides. On a
+   2.65:1 canvas (257.6 × 91 mm unwrapped cylinder) that's 1.15% of HEIGHT
+   on top/bottom and 0.43% of WIDTH on left/right (both ≈ 1 mm absolute). */
+.ed2-print-area {
+  position: absolute;
+  top: 1.15%;
+  bottom: 1.15%;
+  left: 0.43%;
+  right: 0.43%;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  border-radius: 2px;
+  z-index: 2;
+}
+
+/* Bleed: thin gray bands marking the rim/base/handle margin. */
+.ed2-bleed {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.10);
+  pointer-events: none;
+  z-index: 1;
+}
+.ed2-bleed--top    { left: 0; right: 0; top: 0;    height: 1.15%; }
+.ed2-bleed--bottom { left: 0; right: 0; bottom: 0; height: 1.15%; }
+.ed2-bleed--left   { top: 1.15%; bottom: 1.15%; left: 0;  width: 0.43%; }
+.ed2-bleed--right  { top: 1.15%; bottom: 1.15%; right: 0; width: 0.43%; }
+
+/* Three vertical centerline guides. Each marks the center of one of the 3
+   mug views (left side, front, right side). They extend through the bleed
+   so the alignment with the perspective icons (above) and labels (below)
+   is unambiguous. */
+.ed2-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed rgba(0, 0, 0, 0.32);
+  pointer-events: none;
+  z-index: 3;
+}
+.ed2-guide--center {
+  border-left-color: rgba(0, 0, 0, 0.42);
+}
+
+.ed2-bbox {
+  position: absolute;
+  border: 1.5px solid #1a1a1a;
+  cursor: move;
+  box-sizing: border-box;
+  background: rgba(26,26,26,0.04);
+  z-index: 4;
+}
+.ed2-bbox[hidden] { display: none; }
+
+/* Live size readout (Fourthwall-style) — pinned to the bottom-center of
+   the bbox, follows it through drags and resizes. Always shows the
+   active layer's drawn dimensions in cm. pointer-events:none so it
+   doesn't intercept resize-handle / drag clicks. */
+.ed2-bbox-size {
+  position: absolute;
+  bottom: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 9px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #d8d6d2;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  z-index: 5;
+}
+
+/* Smart-guide snap indicators (vertical/horizontal lines) — shown only while
+   dragging when an image edge or center aligns with a print-area edge or
+   centerline. */
+.ed2-snap {
+  position: absolute;
+  background: #ff4d6d;
+  pointer-events: none;
+  z-index: 3;
+}
+.ed2-snap[hidden] { display: none; }
+.ed2-snap--v {
+  top: -8px;
+  bottom: -8px;
+  width: 1px;
+}
+.ed2-snap--h {
+  left: -8px;
+  right: -8px;
+  height: 1px;
+}
+
+.ed2-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border: 1.5px solid #1a1a1a;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  z-index: 2;
+}
+.ed2-handle--tl { top: -7px;    left: -7px;    cursor: nwse-resize; }
+.ed2-handle--tr { top: -7px;    right: -7px;   cursor: nesw-resize; }
+.ed2-handle--bl { bottom: -7px; left: -7px;    cursor: nesw-resize; }
+.ed2-handle--br { bottom: -7px; right: -7px;   cursor: nwse-resize; }
+
+/* Labels under the canvas, absolutely positioned to align with the same
+   27.5/50/72.5 % centerlines as the icons above. */
+.ed2-labels {
+  position: relative;
+  height: 22px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #888;
+}
+.ed2-labels span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+/* Subtle dimensions readout below the labels — gives the user a real-world
+   reference for the print area in cm. */
+.ed2-dimensions {
+  text-align: center;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #b3b3b3;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.ed2-dimensions #dim-text { color: #8a8a8a; }
+
+/* Quality chip — warns when the active layer's effective resolution drops
+   below 150 DPI on the print. Block-flex pill with warning icon, sits
+   centered under the dimensions readout. Hidden when DPI is acceptable. */
+.ed2-quality-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 8px auto 0;
+  padding: 4px 10px;
+  font-size: 11px;
+  line-height: 1.3;
+  background: #fff5e0;
+  color: #a26500;
+  border: 1px solid #f0d39a;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+.ed2-quality-chip[hidden] { display: none; }
+.ed2-quality-chip svg { flex-shrink: 0; }
+
+/* Preview (3D viewer)
+   Single WebGL canvas, two display modes driven by a class:
+   - .canvas-preview--full: fills canvas-area (preview mode)
+   - .canvas-preview--mini: small thumbnail bottom-right that updates
+     live as the user edits (edit mode). Click to expand. */
+.canvas-preview {
+  position: absolute;
+  background: #f5f4f1;
+}
+.canvas-preview[hidden] { display: none; }
+
+.canvas-preview--full {
+  inset: 0;
+}
+
+.canvas-preview--mini {
+  bottom: 24px;
+  right: 24px;
+  width: 220px;
+  height: 220px;
+  border-radius: 14px;
+  border: 1px solid #ececea;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.10);
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+.canvas-preview--mini::after {
+  /* Tiny "expand" hint badge, top-right of the mini thumbnail */
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 6px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a1a1a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='15 3 21 3 21 9'/><polyline points='9 21 3 21 3 15'/><line x1='21' y1='3' x2='14' y2='10'/><line x1='3' y1='21' x2='10' y2='14'/></svg>");
+  background-size: 12px 12px;
+  background-repeat: no-repeat;
+  background-position: center;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.canvas-preview--mini:hover {
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.16);
+  transform: translateY(-2px);
+}
+/* Hide the floating reset button while in mini mode */
+.canvas-preview--mini .preview-reset-btn { display: none; }
+
+/* Floating "Resetear vista" pill in the 3D viewer corner. Only visible
+   when the viewer is shown (i.e. preview mode). */
+.preview-reset-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1a1a1a;
+  border: 1px solid #e6e5e2;
+  border-radius: 999px;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.preview-reset-btn:hover { background: #fff; border-color: #d8d6d2; }
+/* Lock the WebGL canvas to the container regardless of what Three.js writes
+   into its inline width/height styles. Belt + suspenders for the case where
+   the bitmap and CSS style fall out of sync. */
+.canvas-preview canvas {
+  display: block;
+  touch-action: none;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.empty-hint {
+  position: absolute;
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.62);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  pointer-events: none;
+  z-index: 3;
+  transition: opacity 0.3s;
+}
+.empty-hint.hidden { opacity: 0; }
+
+/* Right-edge feedback button — uses writing-mode for vertical text so it
+   anchors flush to the right edge without rotation math. */
+.feedback-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1a1a1a;
+  color: #fff;
+  border: 0;
+  padding: 14px 6px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  border-radius: 6px 0 0 6px;
+  writing-mode: vertical-rl;
+  z-index: 3;
+}
+.feedback-btn:hover { background: #2c2c2c; }
+
+/* ========== Bottom bar ========== */
+.bottombar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: #fff;
+  border-top: 1px solid #ececea;
+  z-index: 5;
+}
+
+.bottombar-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #666;
+}
+.bottombar-icon:hover { background: #f4f3f0; border-color: #e6e5e2; }
+
+.bottombar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.price {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #fafaf8;
+  border: 1px solid #ececea;
+  border-radius: 999px;
+  font-size: 13px;
+  color: #1a1a1a;
+}
+.price-info { color: #999; }
+.price-amount { font-variant-numeric: tabular-nums; font-weight: 500; }
+
+.save-btn {
+  padding: 10px 18px;
+  background: #1a1a1a;
+  color: #fff;
+  border: 1px solid #1a1a1a;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.12s;
+}
+.save-btn:hover { background: #2c2c2c; }
+
+/* ========== Mockups modal ========== */
+.mockups-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.mockups-modal[hidden] { display: none; }
+.mockups-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 20, 20, 0.5);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.mockups-card {
+  position: relative;
+  width: 100%;
+  max-width: 1080px;
+  max-height: calc(100vh - 48px);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.mockups-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 24px;
+  border-bottom: 1px solid #ececea;
+}
+.mockups-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+.mockups-subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #888;
+}
+.mockups-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mockups-status {
+  padding: 48px 24px;
+  text-align: center;
+  font-size: 13px;
+  color: #888;
+}
+.mockups-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  padding: 20px 24px 24px;
+  overflow-y: auto;
+}
+.mockups-grid[hidden] { display: none; }
+.mockup-tile {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #ececea;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fafaf8;
+}
+.mockup-tile-img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  background:
+    repeating-conic-gradient(#f0efea 0% 25%, #fafaf8 0% 50%) 50% / 16px 16px;
+}
+.mockup-tile-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  border-top: 1px solid #ececea;
+  font-size: 12px;
+}
+.mockup-tile-name {
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mockup-tile-download {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #5a5a5a;
+}
+.mockup-tile-download:hover { background: #f4f3f0; color: #1a1a1a; }
+
+@media (max-width: 720px) {
+  .mockups-modal { display: none !important; }
+}
+
+/* ========== Drop hint ========== */
+.drop-hint {
+  position: fixed;
+  inset: 16px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 500;
+  color: #fff;
+  background: rgba(0,0,0,0.55);
+  border: 2px dashed rgba(255,255,255,0.6);
+  border-radius: 16px;
+  pointer-events: none;
+  z-index: 50;
+}
+body.dragging .drop-hint { display: flex; }
+
+/* ========== Responsive ========== */
+@media (max-width: 900px) {
+  .topbar-title { max-width: 26vw; font-size: 13px; }
+  .feedback-btn { display: none; }
+}
+
+/* ========== Desktop-only gate ==========
+   The editor's complex pointer + handle UX (drag, corner resize, smart guides,
+   layer hit-testing) doesn't translate well to phones. Below 720px we hide
+   .app and show a friendly "use a computer" message instead. Tablets in
+   landscape (≥ 720px) keep the full editor. */
+.mobile-block {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #f5f4f1;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.mobile-block-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 360px;
+  text-align: center;
+  padding: 32px 24px;
+  background: #fff;
+  border: 1px solid #ececea;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  color: #1a1a1a;
+}
+.mobile-block-card svg { color: #888; }
+.mobile-block-card h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.mobile-block-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #5a5a5a;
+}
+.mobile-block-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  padding: 12px 22px;
+  background: #1a1a1a;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: background 0.12s;
+  min-height: 44px;
+  min-width: 180px;
+}
+.mobile-block-cta:hover,
+.mobile-block-cta:active { background: #2c2c2c; }
+
+@media (max-width: 720px) {
+  .app { display: none; }
+  .feedback-btn,
+  .drop-hint { display: none !important; }
+  .mobile-block { display: flex; }
+}

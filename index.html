@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Diseñador de tazas · Gudink</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.161.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="topbar-cluster">
+      <button class="topbar-icon" title="Volver" aria-label="Volver">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span class="topbar-divider"></span>
+      <button class="topbar-icon" title="Deshacer" aria-label="Deshacer">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></svg>
+      </button>
+      <button class="topbar-icon" title="Rehacer" aria-label="Rehacer">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 15-6.7L21 13"/></svg>
+      </button>
+      <span class="topbar-title">Nuevo diseño</span>
+    </div>
+    <div class="view-toggle" role="tablist" aria-label="Modo de vista">
+      <button class="view-toggle-btn is-active" data-mode="edit" role="tab" aria-selected="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        Edición
+      </button>
+      <button class="view-toggle-btn" data-mode="preview" role="tab" aria-selected="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+        Preview
+      </button>
+    </div>
+  </header>
+
+  <div class="main-row">
+    <aside class="leftbar">
+      <button class="leftbar-tab" data-panel="design" title="Diseño">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span>Diseño</span>
+      </button>
+      <button class="leftbar-tab" data-panel="product" title="Producto">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        <span>Producto</span>
+      </button>
+    </aside>
+
+    <aside class="side-panel" id="side-panel" hidden>
+      <header class="side-panel-header">
+        <span class="side-panel-title" id="side-panel-title">SUBIR</span>
+        <button class="side-panel-close" id="side-panel-close" aria-label="Cerrar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </header>
+
+      <!-- Diseño tab: where users add and edit visual content. Holds the
+           layer list, the upload dropzone, and a contextual "Editar capa"
+           subsection that appears only when a layer is active. -->
+      <section class="side-panel-section" data-panel="design">
+        <h4 class="section-title">Capas <span class="layer-count" id="layer-count">0/5</span></h4>
+        <div class="layer-list" id="layer-list" hidden></div>
+        <label class="upload-dropzone" id="upload-dropzone">
+          <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp" multiple hidden>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          <span class="dropzone-primary" id="dropzone-primary">Subir imagen</span>
+          <span class="dropzone-secondary">PNG · JPG · WebP · Máx 5</span>
+        </label>
+        <p class="section-hint">Hacé click en una capa para editarla. La capa más nueva queda arriba.</p>
+
+        <!-- Contextual "Editar capa" subsection — JS toggles [hidden] based
+             on whether an active layer exists. Header text updates with the
+             active layer's name (e.g. "Editar · Capa 2"). -->
+        <div class="editar-capa-section" id="editar-capa-section" hidden>
+          <h4 class="section-title section-title--sub">Editar · <span id="editar-capa-name">Capa</span></h4>
+          <div class="control">
+            <div class="control-label"><span>Posicionamiento rápido</span></div>
+            <div class="quick-actions">
+              <button class="quick-btn" id="qa-center" title="Centrar imagen">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2" fill="currentColor"/><line x1="12" y1="3" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="21"/><line x1="3" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="21" y2="12"/></svg>
+                Centrar
+              </button>
+              <button class="quick-btn" id="qa-fit" title="Ajustar al área imprimible">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M21 9V5a2 2 0 0 0-2-2h-4"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/></svg>
+                Ajustar
+              </button>
+              <button class="quick-btn" id="qa-fill" title="Llenar el área imprimible">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+                Llenar
+              </button>
+            </div>
+          </div>
+          <div class="control">
+            <div class="control-label">
+              <span>Escala</span>
+              <span class="control-val" id="scale-val">100%</span>
+            </div>
+            <input type="range" id="scale" min="0.2" max="5" step="0.01" value="1">
+          </div>
+          <div class="control">
+            <div class="control-label">
+              <span>Posición horizontal</span>
+              <span class="control-val" id="offset-x-val">0</span>
+            </div>
+            <input type="range" id="offset-x" min="-0.5" max="0.5" step="0.005" value="0">
+          </div>
+          <div class="control">
+            <div class="control-label">
+              <span>Posición vertical</span>
+              <span class="control-val" id="offset-y-val">0</span>
+            </div>
+            <input type="range" id="offset-y" min="-0.4" max="0.4" step="0.005" value="0">
+          </div>
+        </div>
+      </section>
+
+      <!-- Producto tab: informational + product-level customization only.
+           Mirrors the Gudink convention where this tab describes the
+           thing being designed (not the design itself). -->
+      <section class="side-panel-section" data-panel="product" hidden>
+        <article class="product-info-card">
+          <div class="product-info-thumb" aria-hidden="true">
+            <svg width="56" height="56" viewBox="0 0 64 64" fill="none" stroke="#9a9a96" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 16h28v34a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4z"/>
+              <path d="M42 22a8 8 0 0 1 0 16"/>
+              <path d="M14 16c0-2 1-4 4-4h20c3 0 4 2 4 4"/>
+            </svg>
+          </div>
+          <div class="product-info-body">
+            <h3 class="product-info-title">Taza cerámica 11 oz</h3>
+            <p class="product-info-desc">Taza blanca de cerámica con asa. Ideal para sublimación a todo color.</p>
+            <dl class="product-info-meta">
+              <div><dt>Material</dt><dd>Cerámica</dd></div>
+              <div><dt>Medidas</dt><dd>Ø 8.2 · alto 9.5 cm</dd></div>
+              <div><dt>Área de impresión</dt><dd>25.5 × 8.9 cm</dd></div>
+              <div><dt>Cuidado</dt><dd>Apta para microondas y lavavajillas</dd></div>
+            </dl>
+            <div class="product-info-price">$ 22.000</div>
+          </div>
+        </article>
+
+        <div class="control">
+          <div class="control-label">
+            <span>Color de la taza</span>
+          </div>
+          <div class="color-row">
+            <input type="color" id="body-color" value="#ffffff">
+            <span class="color-hint">Blanco por default</span>
+          </div>
+        </div>
+
+        <hr class="control-divider">
+
+        <h4 class="section-title section-title--sub">Acciones</h4>
+        <div class="control">
+          <button id="generate-mockups" class="primary-btn" title="Genera 5 fotos del producto desde distintos ángulos">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Generar mockups del producto
+          </button>
+        </div>
+        <div class="control">
+          <button id="download-print" class="ghost-btn" title="PNG 300 DPI listo para producción">
+            Descargar archivo de impresión
+          </button>
+        </div>
+      </section>
+    </aside>
+
+    <main class="canvas-area">
+      <div class="canvas-edit" id="canvas-edit">
+        <!-- Mouse-following grid background (Modeinspect-style). Two SVG
+             layers: a base grid (always faintly visible) and a reveal grid
+             (brighter, masked to a radial spotlight that tracks the cursor).
+             Both layers slowly scroll for a subtle "alive" feel. Layers sit
+             below the .ed2-frame content via stacking order. -->
+        <div class="ed2-grid-layer ed2-grid-layer--base" aria-hidden="true">
+          <svg class="ed2-grid-svg" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="ed2-grid-base" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" stroke-width="0.8"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#ed2-grid-base)"/>
+          </svg>
+        </div>
+        <div class="ed2-grid-layer ed2-grid-layer--reveal" id="ed2-grid-reveal" aria-hidden="true">
+          <svg class="ed2-grid-svg" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="ed2-grid-reveal-pat" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" stroke-width="1"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#ed2-grid-reveal-pat)"/>
+          </svg>
+        </div>
+        <div class="ed2-frame">
+          <div class="ed2-icons">
+            <span class="ed2-mug ed2-mug--left" style="left: 25%" aria-hidden="true"></span>
+            <span class="ed2-mug ed2-mug--front" style="left: 50%" aria-hidden="true"></span>
+            <span class="ed2-mug ed2-mug--right" style="left: 75%" aria-hidden="true"></span>
+          </div>
+          <div class="ed2-canvas-wrap" id="canvas-wrap">
+            <!-- Bleed bands: 4 semi-transparent gray rectangles around the
+                 printable area, mimicking Printify's "non-printable margin"
+                 visualisation. The print area is the white inset. -->
+            <div class="ed2-bleed ed2-bleed--top"></div>
+            <div class="ed2-bleed ed2-bleed--bottom"></div>
+            <div class="ed2-bleed ed2-bleed--left"></div>
+            <div class="ed2-bleed ed2-bleed--right"></div>
+            <div class="ed2-print-area"></div>
+            <!-- 3 vertical guides marking the centers of the 3 mug views.
+                 With ~1 mm uniform bleed, print area spans ~99% of canvas
+                 width and quarter divisions land effectively at 25/50/75%. -->
+            <div class="ed2-guide" style="left: 25%"></div>
+            <div class="ed2-guide ed2-guide--center" style="left: 50%"></div>
+            <div class="ed2-guide" style="left: 75%"></div>
+            <!-- Smart-guide overlays — shown only while dragging when snap fires -->
+            <div class="ed2-snap ed2-snap--v" id="snap-v" hidden></div>
+            <div class="ed2-snap ed2-snap--h" id="snap-h" hidden></div>
+            <div class="ed2-bbox" id="image-bbox" hidden>
+              <div class="ed2-handle ed2-handle--tl" data-corner="tl"></div>
+              <div class="ed2-handle ed2-handle--tr" data-corner="tr"></div>
+              <div class="ed2-handle ed2-handle--bl" data-corner="bl"></div>
+              <div class="ed2-handle ed2-handle--br" data-corner="br"></div>
+              <!-- Measurement chip pinned to the bottom-center of the bbox.
+                   Updates whenever the layer is moved or resized. -->
+              <div class="ed2-bbox-size">
+                <span id="bbox-size-text">10 × 10 cm</span>
+              </div>
+            </div>
+          </div>
+          <div class="ed2-labels">
+            <span style="left: 25%">Lado izquierdo</span>
+            <span style="left: 50%">Centro de la taza</span>
+            <span style="left: 75%">Lado derecho</span>
+          </div>
+          <div class="ed2-dimensions">
+            Área imprimible · <span id="dim-text">22.9 × 8.9 cm</span> · Taza 11oz
+          </div>
+          <div class="ed2-quality-chip" id="quality-chip" hidden>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span><span id="quality-layer-name">Capa</span> · <span id="quality-dpi">--</span> DPI · imagen de baja calidad (recomendado 150+)</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="viewer" class="canvas-preview">
+        <button class="preview-reset-btn" id="reset-view" type="button" title="Resetear vista 3D">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          <span>Resetear vista</span>
+        </button>
+      </div>
+
+      <div id="empty-hint" class="empty-hint">Subí o arrastrá una imagen para empezar</div>
+    </main>
+
+    <button class="feedback-btn" type="button">Feedback</button>
+  </div>
+
+  <footer class="bottombar">
+    <div class="bottombar-left">
+      <button class="bottombar-icon" title="Ayuda" aria-label="Ayuda">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </button>
+    </div>
+    <div class="bottombar-right">
+      <span class="price">
+        <span class="price-amount">$ 22.000</span>
+        <svg class="price-info" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      </span>
+      <button class="save-btn" type="button">Guardar y volver</button>
+    </div>
+  </footer>
+</div>
+
+<div class="drop-hint">Soltá la imagen para aplicarla</div>
+
+<!-- Desktop-only block. Shown via CSS media query at narrow viewports;
+     hides the .app shell to keep the editor's complex pointer + handle UX
+     out of phones, where it doesn't translate well.
+     The CTA links to "/" for now — wire it to the pre-editor page (catalog
+     or product page) when the editor gets integrated into the app. -->
+<div class="mobile-block" aria-hidden="true">
+  <div class="mobile-block-card">
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="2" y="4" width="20" height="14" rx="2"/>
+      <path d="M8 21h8"/>
+      <path d="M12 18v3"/>
+    </svg>
+    <h2>Editor solo para escritorio</h2>
+    <p>Por el momento, el editor de diseño está disponible únicamente en computadoras. Abrí esta página desde tu computadora para empezar a diseñar.</p>
+    <a class="mobile-block-cta" href="/" data-cta="back-to-product">Volver a la tienda</a>
+  </div>
+</div>
+
+<!-- Mockups gallery modal — opens when the user clicks "Generar mockups
+     del producto". JS populates the grid by rendering the 3D scene from
+     N camera presets and capturing each as a PNG. Each thumbnail has
+     its own download button; the user can also "descargar todo" as a
+     batch (sequential downloads). -->
+<div class="mockups-modal" id="mockups-modal" hidden>
+  <div class="mockups-backdrop" data-close></div>
+  <div class="mockups-card" role="dialog" aria-modal="true" aria-labelledby="mockups-title">
+    <header class="mockups-header">
+      <div>
+        <h2 id="mockups-title">Mockups del producto</h2>
+        <p class="mockups-subtitle">Imágenes listas para subir a tu tienda</p>
+      </div>
+      <div class="mockups-header-actions">
+        <button class="ghost-btn ghost-btn--small" id="mockups-download-all" disabled>Descargar todo</button>
+        <button class="topbar-icon" data-close aria-label="Cerrar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </header>
+    <div class="mockups-status" id="mockups-status">Generando mockups…</div>
+    <div class="mockups-grid" id="mockups-grid" hidden></div>
+  </div>
+</div>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>
