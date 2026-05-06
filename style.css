@@ -667,21 +667,20 @@ input, select { font: inherit; }
   z-index: 2;
 }
 
-/* Placement Zone Guide — appears during file drag (body.dragging) to show
-   the primary "Frente" design zone, matching Fourthwall's drag DX pattern.
-   Left/right: 33.33% aligns with the center third between the two outer
-   guides (25% and 75%) — this is the front face of the mug that buyers see.
-   Top/bottom: 1.15% stays inside the bleed bands.
-   Pure CSS trigger: opacity-only transition (no display swap) so fade is
-   smooth. pointer-events:none prevents interfering with drop handling. */
+/* Placement Zone Guide — permanently visible orientation marker for the mug's
+   "Frente" (front face) zone, matching Fourthwall's always-on design zone UX.
+   JS toggles [hidden] in renderLayerList(): shown when no layers exist,
+   hidden once the user has placed a design (guide is no longer needed).
+   During file drag, the border pulses slightly brighter so it doubles as
+   a drop-target indicator. */
 .ed2-placement-guide {
   position: absolute;
   top: 1.15%;
   bottom: 1.15%;
   left: 33.33%;
   right: 33.33%;
-  border: 2px dashed rgba(59, 130, 246, 0.55);
-  background: rgba(59, 130, 246, 0.05);
+  border: 2px dashed rgba(59, 130, 246, 0.50);
+  background: rgba(59, 130, 246, 0.04);
   border-radius: 3px;
   pointer-events: none;
   z-index: 6;
@@ -689,25 +688,25 @@ input, select { font: inherit; }
   align-items: flex-end;
   justify-content: center;
   padding-bottom: 8px;
-  opacity: 0;
-  transition: opacity 0.18s ease;
+  transition: border-color 0.18s ease, background 0.18s ease;
 }
-body.dragging .ed2-placement-guide {
-  opacity: 1;
+.ed2-placement-guide[hidden] { display: none; }
+body.dragging .ed2-placement-guide:not([hidden]) {
+  border-color: rgba(59, 130, 246, 0.85);
+  background: rgba(59, 130, 246, 0.09);
 }
 .ed2-placement-guide-label {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(59, 130, 246, 0.75);
+  color: rgba(59, 130, 246, 0.65);
   line-height: 1;
 }
 
 /* Canvas upload button — dark circle at print-area center (50%/50%).
    Matches the Gudink t-shirt / framed-print "Subir imagen" element.
-   Shown only when no layers exist (JS toggles [hidden] in renderLayerList).
-   Fades out during file drag so the Placement Zone Guide reads clearly. */
+   Shown only when no layers exist (JS toggles [hidden] in renderLayerList). */
 .ed2-upload-btn {
   position: absolute;
   left: 50%;
@@ -736,8 +735,6 @@ body.dragging .ed2-placement-guide {
 }
 .ed2-upload-btn:hover { background: #1f2937; }
 .ed2-upload-btn[hidden] { display: none; }
-/* Hide (fade) during file drag so the Placement Zone Guide reads clearly */
-body.dragging .ed2-upload-btn { opacity: 0; pointer-events: none; }
 
 /* Bleed: thin gray bands marking the rim/base/handle margin. */
 .ed2-bleed {

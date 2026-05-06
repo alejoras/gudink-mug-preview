@@ -1672,9 +1672,14 @@ function renderLayerList() {
       : (state.layers.length === 0 ? 'Subir imagen' : 'Agregar capa');
   }
 
-  // Canvas upload button — show only when there are no layers.
+  // Canvas upload button + Placement Zone Guide — both visible only when
+  // no layers exist. Guide acts as permanent orientation (Fourthwall-style);
+  // upload button invites the first action.
+  const empty = state.layers.length === 0;
   const canvasUploadBtn = document.getElementById('canvas-upload-btn');
-  if (canvasUploadBtn) canvasUploadBtn.hidden = state.layers.length > 0;
+  if (canvasUploadBtn) canvasUploadBtn.hidden = !empty;
+  const placementGuide = document.querySelector('.ed2-placement-guide');
+  if (placementGuide) placementGuide.hidden = !empty;
 }
 
 // Canvas upload button click → trigger file input (same as dropzone).
