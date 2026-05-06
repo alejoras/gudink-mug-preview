@@ -236,6 +236,18 @@
             <div class="ed2-guide" style="left: 25%"></div>
             <div class="ed2-guide ed2-guide--center" style="left: 50%"></div>
             <div class="ed2-guide" style="left: 75%"></div>
+            <!-- Canvas upload button — dark circle at print-area center.
+                 Matches the Gudink t-shirt / framed-print "Subir imagen"
+                 element. Shown only when no layers exist; JS toggles
+                 [hidden] in renderLayerList(). Clicking triggers #file-input. -->
+            <button class="ed2-upload-btn" id="canvas-upload-btn" type="button" aria-label="Subir imagen">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <span>Subir imagen</span>
+            </button>
             <!-- Smart-guide overlays — shown only while dragging when snap fires -->
             <div class="ed2-snap ed2-snap--v" id="snap-v" hidden></div>
             <div class="ed2-snap ed2-snap--h" id="snap-h" hidden></div>

@@ -704,6 +704,41 @@ body.dragging .ed2-placement-guide {
   line-height: 1;
 }
 
+/* Canvas upload button — dark circle at print-area center (50%/50%).
+   Matches the Gudink t-shirt / framed-print "Subir imagen" element.
+   Shown only when no layers exist (JS toggles [hidden] in renderLayerList).
+   Fades out during file drag so the Placement Zone Guide reads clearly. */
+.ed2-upload-btn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: #111827;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  z-index: 3;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
+  transition: background 0.15s ease, opacity 0.18s ease;
+  padding: 0 12px;
+}
+.ed2-upload-btn:hover { background: #1f2937; }
+.ed2-upload-btn[hidden] { display: none; }
+/* Hide (fade) during file drag so the Placement Zone Guide reads clearly */
+body.dragging .ed2-upload-btn { opacity: 0; pointer-events: none; }
+
 /* Bleed: thin gray bands marking the rim/base/handle margin. */
 .ed2-bleed {
   position: absolute;

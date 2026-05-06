@@ -1671,7 +1671,16 @@ function renderLayerList() {
       ? `Máximo ${MAX_LAYERS} capas`
       : (state.layers.length === 0 ? 'Subir imagen' : 'Agregar capa');
   }
+
+  // Canvas upload button — show only when there are no layers.
+  const canvasUploadBtn = document.getElementById('canvas-upload-btn');
+  if (canvasUploadBtn) canvasUploadBtn.hidden = state.layers.length > 0;
 }
+
+// Canvas upload button click → trigger file input (same as dropzone).
+document.getElementById('canvas-upload-btn')?.addEventListener('click', () => {
+  document.getElementById('file-input')?.click();
+});
 
 // Single delegated listener on the layer list — handles select, delete,
 // and reorder. Each item carries data-layer-id; each action button carries
