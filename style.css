@@ -874,6 +874,44 @@ input, select { font: inherit; }
 .canvas-preview--mini .preview-expand-btn { display: inline-flex; }
 .preview-expand-btn:hover { background: #fff; border-color: #d8d6d2; }
 
+/* One-time rotate hint — fades in over the mini the first time the
+   cursor enters during an edit session, dismisses on first drag or
+   after a timeout. Pointer-events:none so it doesn't intercept the
+   orbit gesture. */
+.mini-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  background: rgba(26, 26, 26, 0.85);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 11px;
+  pointer-events: none;
+  white-space: nowrap;
+  transform: translate(-50%, 6px);
+  opacity: 0;
+  transition: opacity 0.28s ease, transform 0.28s ease;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.mini-hint[hidden] { display: none; }
+.mini-hint.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.mini-hint svg {
+  flex-shrink: 0;
+  animation: mini-hint-spin 2s linear infinite;
+}
+@keyframes mini-hint-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Floating "Resetear vista" pill in the 3D viewer corner. Only visible
    when the viewer is shown (i.e. preview mode). */
 .preview-reset-btn {

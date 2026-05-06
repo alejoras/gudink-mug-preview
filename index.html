@@ -271,6 +271,18 @@
         <button class="preview-expand-btn" id="expand-preview" type="button" title="Ampliar a preview" aria-label="Ampliar a preview">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
         </button>
+        <!-- One-time rotate hint. Shown the first time the cursor enters
+             the mini in an edit session; hides when the user actually
+             rotates (drags) the mug, or after a short timeout. -->
+        <div class="mini-hint" id="mini-hint" hidden aria-hidden="true">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2v6h-6"/>
+            <path d="M2.5 22v-6h6"/>
+            <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8"/>
+            <path d="M22 12.5a10 10 0 0 1-18.8 4.3L2.5 16"/>
+          </svg>
+          <span>Arrastrá para rotar</span>
+        </div>
         <button class="preview-reset-btn" id="reset-view" type="button" title="Resetear vista 3D">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           <span>Resetear vista</span>

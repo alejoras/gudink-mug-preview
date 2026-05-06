@@ -1073,6 +1073,10 @@ function setViewMode(mode) {
       controls.enabled = true;
       controls.enableZoom = false;
       controls.enablePan = false;
+      // Damping disabled in mini so the camera locks the moment the
+      // user releases — no perceived "continues with mouse movement"
+      // tail. Full preview keeps damping for a smoother feel.
+      controls.enableDamping = false;
     }
   } else {
     canvasEdit.hidden = true;
@@ -1082,7 +1086,11 @@ function setViewMode(mode) {
       controls.enabled = true;
       controls.enableZoom = true;
       controls.enablePan = true;
+      controls.enableDamping = true;
     }
+    // Hide the rotate hint if user switched away from edit
+    const hint = document.getElementById('mini-hint');
+    if (hint) { hint.classList.remove('is-visible'); hint.hidden = true; }
   }
   // Renderer reads container size, so call after class change.
   resizeViewer();
@@ -1094,12 +1102,86 @@ viewToggleBtns.forEach((b) => {
 
 // Dedicated expand button (top-right of mini) — clicking it ramps up
 // to full preview. Clicks/drags anywhere else on the mini orbit the
-// camera (controls.enabled is true in mini mode).
+// camera (controls.enabled is true in mini mode). pointerdown is also
+// stopped here so OrbitControls doesn't start an orbit underneath
+// the button click.
+document.getElementById('expand-preview')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+});
 document.getElementById('expand-preview')?.addEventListener('click', (e) => {
   e.stopPropagation();
   if (viewMode !== 'edit') return;
   setViewMode('preview');
 });
+
+// Safety net for OrbitControls — re-dispatch pointerup to the renderer
+// canvas whenever pointerup fires on the window but didn't land on the
+// canvas itself. Belt + suspenders for the case where pointer capture
+// gets lost mid-drag (was causing the mug to keep rotating with mouse
+// movement after release).
+window.addEventListener('pointerup', (e) => {
+  const canvas = renderer?.domElement;
+  if (!canvas) return;
+  if (e.target === canvas || canvas.contains(e.target)) return;
+  try {
+    canvas.dispatchEvent(new PointerEvent('pointerup', {
+      bubbles: true, cancelable: true,
+      pointerId: e.pointerId, pointerType: e.pointerType,
+      clientX: e.clientX, clientY: e.clientY,
+      button: e.button,
+    }));
+  } catch {}
+});
+
+// One-time "Arrastrá para rotar" hint on the mini.
+// Shows the first time the cursor enters the mini in this session;
+// dismisses on first drag (pointerdown + meaningful move) or after
+// 3.5s of hovering. Once dismissed, never shows again this session.
+(function initMiniHint() {
+  const hint = document.getElementById('mini-hint');
+  if (!hint || !viewerContainer) return;
+  let shownOnce = false;
+  let dismissed = false;
+  let autoHideTimer = null;
+  let hintPointerStart = null;
+
+  function show() {
+    if (dismissed || shownOnce || viewMode !== 'edit') return;
+    hint.hidden = false;
+    requestAnimationFrame(() => hint.classList.add('is-visible'));
+    shownOnce = true;
+    clearTimeout(autoHideTimer);
+    autoHideTimer = setTimeout(hide, 3500);
+  }
+  function hide() {
+    dismissed = true;
+    clearTimeout(autoHideTimer);
+    hint.classList.remove('is-visible');
+    setTimeout(() => { hint.hidden = true; }, 320);
+  }
+
+  viewerContainer.addEventListener('pointerenter', () => {
+    if (viewMode !== 'edit') return;
+    show();
+  });
+  // Track real drag (not just a click) so the hint dismisses precisely
+  // when the user actually rotates.
+  viewerContainer.addEventListener('pointerdown', (e) => {
+    if (viewMode !== 'edit') return;
+    if (e.target.closest('.preview-expand-btn')) return;
+    hintPointerStart = { x: e.clientX, y: e.clientY };
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (!hintPointerStart) return;
+    const dx = Math.abs(e.clientX - hintPointerStart.x);
+    const dy = Math.abs(e.clientY - hintPointerStart.y);
+    if (dx + dy > 6) {
+      hide();
+      hintPointerStart = null;
+    }
+  });
+  window.addEventListener('pointerup', () => { hintPointerStart = null; });
+})();
 
 // Prime the initial view-mode state (default = 'edit'). This unhides the
 // viewer, applies the mini class, and triggers the first resizeViewer()
