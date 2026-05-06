@@ -1066,14 +1066,23 @@ function setViewMode(mode) {
     canvasEdit.hidden = false;
     viewerContainer.classList.add('canvas-preview--mini');
     viewerContainer.classList.remove('canvas-preview--full');
-    // Disable orbit so clicks on the mini thumbnail don't rotate the mug —
-    // they should expand to preview mode instead.
-    if (controls) controls.enabled = false;
+    // Mini supports orbit but not zoom or pan — wheel-zoom would
+    // hijack page scroll over the mini, and pan would push the mug
+    // out of frame at this small size. Drag to rotate is enough.
+    if (controls) {
+      controls.enabled = true;
+      controls.enableZoom = false;
+      controls.enablePan = false;
+    }
   } else {
     canvasEdit.hidden = true;
     viewerContainer.classList.remove('canvas-preview--mini');
     viewerContainer.classList.add('canvas-preview--full');
-    if (controls) controls.enabled = true;
+    if (controls) {
+      controls.enabled = true;
+      controls.enableZoom = true;
+      controls.enablePan = true;
+    }
   }
   // Renderer reads container size, so call after class change.
   resizeViewer();
@@ -1083,12 +1092,12 @@ viewToggleBtns.forEach((b) => {
   b.addEventListener('click', () => setViewMode(b.dataset.mode));
 });
 
-// Click on the mini live mockup → expand to full preview mode.
-viewerContainer.addEventListener('click', (e) => {
+// Dedicated expand button (top-right of mini) — clicking it ramps up
+// to full preview. Clicks/drags anywhere else on the mini orbit the
+// camera (controls.enabled is true in mini mode).
+document.getElementById('expand-preview')?.addEventListener('click', (e) => {
+  e.stopPropagation();
   if (viewMode !== 'edit') return;
-  // Don't intercept clicks on the floating reset button (it's hidden in
-  // mini via CSS, but stop propagation just in case).
-  if (e.target.closest('.preview-reset-btn')) return;
   setViewMode('preview');
 });
 
