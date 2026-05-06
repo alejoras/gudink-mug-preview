@@ -667,6 +667,43 @@ input, select { font: inherit; }
   z-index: 2;
 }
 
+/* Placement Zone Guide — appears during file drag (body.dragging) to show
+   the primary "Frente" design zone, matching Fourthwall's drag DX pattern.
+   Left/right: 33.33% aligns with the center third between the two outer
+   guides (25% and 75%) — this is the front face of the mug that buyers see.
+   Top/bottom: 1.15% stays inside the bleed bands.
+   Pure CSS trigger: opacity-only transition (no display swap) so fade is
+   smooth. pointer-events:none prevents interfering with drop handling. */
+.ed2-placement-guide {
+  position: absolute;
+  top: 1.15%;
+  bottom: 1.15%;
+  left: 33.33%;
+  right: 33.33%;
+  border: 2px dashed rgba(59, 130, 246, 0.55);
+  background: rgba(59, 130, 246, 0.05);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 6;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 8px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+body.dragging .ed2-placement-guide {
+  opacity: 1;
+}
+.ed2-placement-guide-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(59, 130, 246, 0.75);
+  line-height: 1;
+}
+
 /* Bleed: thin gray bands marking the rim/base/handle margin. */
 .ed2-bleed {
   position: absolute;

@@ -224,6 +224,12 @@
             <div class="ed2-bleed ed2-bleed--left"></div>
             <div class="ed2-bleed ed2-bleed--right"></div>
             <div class="ed2-print-area"></div>
+            <!-- Placement Zone Guide — shown during file drag. Marks the
+                 "Frente" (front face) zone of the mug, matching Fourthwall's
+                 drag UX pattern. Pure CSS show/hide via body.dragging. -->
+            <div class="ed2-placement-guide" aria-hidden="true">
+              <span class="ed2-placement-guide-label">Frente</span>
+            </div>
             <!-- 3 vertical guides marking the centers of the 3 mug views.
                  With ~1 mm uniform bleed, print area spans ~99% of canvas
                  width and quarter divisions land effectively at 25/50/75%. -->
