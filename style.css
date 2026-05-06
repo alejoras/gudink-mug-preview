@@ -819,10 +819,13 @@ input, select { font: inherit; }
    Single WebGL canvas, two display modes driven by a class:
    - .canvas-preview--full: fills canvas-area (preview mode)
    - .canvas-preview--mini: small thumbnail bottom-right that updates
-     live as the user edits (edit mode). Click to expand. */
+     live as the user edits (edit mode). Click to expand.
+   z-index 10 lifts the viewer above .ed2-frame (z:1) and its children
+   so the mini sits ON TOP of the canvas, not behind it. */
 .canvas-preview {
   position: absolute;
   background: #f5f4f1;
+  z-index: 10;
 }
 .canvas-preview[hidden] { display: none; }
 
