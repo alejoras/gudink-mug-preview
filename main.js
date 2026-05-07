@@ -178,12 +178,22 @@ ground.receiveShadow = true;
 scene.add(ground);
 
 // ---------- Texture (canvas-backed) ----------
+// Two canvases share the same dimensions and design layers:
+//   texCanvas    — visible in the editor; always painted with WHITE bg so
+//                   the editor stays light regardless of mug body color.
+//   textureCanvas — hidden, backs the 3D CanvasTexture; painted with the
+//                   body color so the 3D mug shows the correct material.
 const texCanvas = document.createElement('canvas');
 texCanvas.width = TEX_W;
 texCanvas.height = TEX_H;
 const texCtx = texCanvas.getContext('2d');
 
-const mugTexture = new THREE.CanvasTexture(texCanvas);
+const textureCanvas = document.createElement('canvas');
+textureCanvas.width = TEX_W;
+textureCanvas.height = TEX_H;
+const textureCtx = textureCanvas.getContext('2d');
+
+const mugTexture = new THREE.CanvasTexture(textureCanvas);
 mugTexture.colorSpace = THREE.SRGBColorSpace;
 mugTexture.wrapS = THREE.RepeatWrapping;
 mugTexture.wrapT = THREE.ClampToEdgeWrapping;
@@ -230,7 +240,7 @@ function layerBaseDraw(layer, areaW, areaH) {
 // print exporter (high-res offscreen canvas).
 function paintLayers(ctx, w, h, opts = {}) {
   if (opts.fillBg !== false) {
-    ctx.fillStyle = state.bodyColor;
+    ctx.fillStyle = opts.bgColor || state.bodyColor;
     ctx.fillRect(0, 0, w, h);
   }
   const { wFrac, hFrac } = getPrintAreaFracs();
@@ -252,7 +262,12 @@ function paintLayers(ctx, w, h, opts = {}) {
 }
 
 function drawTexture() {
-  paintLayers(texCtx, TEX_W, TEX_H);
+  // Editor canvas: always white background so the canvas itself stays
+  // light regardless of which body color the user picked.
+  paintLayers(texCtx, TEX_W, TEX_H, { bgColor: '#ffffff' });
+  // 3D texture canvas: filled with the actual body color so the 3D mug
+  // renders the correct material in empty (no-design) areas.
+  paintLayers(textureCtx, TEX_W, TEX_H);
   mugTexture.needsUpdate = true;
   if (typeof updateImageBbox === 'function') updateImageBbox();
   if (typeof updateQualityChip === 'function') updateQualityChip();

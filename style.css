@@ -631,10 +631,13 @@ input, select { font: inherit; }
   z-index: 1;
 }
 
-/* Mug-orientation icons — hidden. The 3-mug layout (left/front/right)
-   suggested a 3-section split that conflicts with the simpler "Frente at
-   canvas-25%" model. Markup kept for potential re-use. */
-.ed2-icons { display: none; }
+/* Mug-orientation icons — positioned absolutely at 25/50/75% so they
+   align with the 3 vertical centerline guides below. */
+.ed2-icons {
+  position: relative;
+  height: 56px;
+  margin-bottom: 8px;
+}
 .ed2-mug {
   position: absolute;
   top: 0;
