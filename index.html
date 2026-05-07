@@ -129,24 +129,22 @@
            thing being designed (not the design itself). -->
       <section class="side-panel-section" data-panel="product" hidden>
         <article class="product-info-card">
-          <div class="product-info-thumb" aria-hidden="true">
-            <svg width="56" height="56" viewBox="0 0 64 64" fill="none" stroke="#9a9a96" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 16h28v34a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4z"/>
-              <path d="M42 22a8 8 0 0 1 0 16"/>
-              <path d="M14 16c0-2 1-4 4-4h20c3 0 4 2 4 4"/>
-            </svg>
-          </div>
-          <div class="product-info-body">
-            <h3 class="product-info-title">Taza cerámica 11 oz</h3>
-            <p class="product-info-desc">Taza blanca de cerámica con asa. Ideal para sublimación a todo color.</p>
-            <dl class="product-info-meta">
-              <div><dt>Material</dt><dd>Cerámica</dd></div>
-              <div><dt>Medidas</dt><dd>Ø 8.2 · alto 9.5 cm</dd></div>
-              <div><dt>Área de impresión</dt><dd>25.5 × 8.9 cm</dd></div>
-              <div><dt>Cuidado</dt><dd>Apta para microondas y lavavajillas</dd></div>
-            </dl>
-            <div class="product-info-price">$ 22.000</div>
-          </div>
+          <header class="product-info-header">
+            <div class="product-info-thumb" aria-hidden="true">
+              <img src="taza-chica.png" alt="" width="72" height="72">
+            </div>
+            <div class="product-info-summary">
+              <h3 class="product-info-title">Taza cerámica 11 oz</h3>
+              <p class="product-info-desc">Taza blanca de cerámica con asa. Ideal para sublimación a todo color.</p>
+            </div>
+          </header>
+          <dl class="product-info-meta">
+            <div><dt>Material</dt><dd>Cerámica</dd></div>
+            <div><dt>Medidas</dt><dd>Ø 8.2 · alto 9.5 cm</dd></div>
+            <div><dt>Área de impresión</dt><dd>25.5 × 8.9 cm</dd></div>
+            <div><dt>Cuidado</dt><dd>Apta para microondas y lavavajillas</dd></div>
+          </dl>
+          <div class="product-info-price">$ 22.000</div>
         </article>
 
         <div class="control">
@@ -227,7 +225,7 @@
             <!-- Placement Zone Guide — shown during file drag. Marks the
                  "Frente" (front face) zone of the mug, matching Fourthwall's
                  drag UX pattern. Pure CSS show/hide via body.dragging. -->
-            <div class="ed2-placement-guide" aria-hidden="true">
+            <div class="ed2-placement-guide" aria-hidden="true" hidden>
               <span class="ed2-placement-guide-label">Frente</span>
             </div>
             <!-- 3 vertical guides marking the centers of the 3 mug views.
@@ -263,11 +261,6 @@
               </div>
             </div>
           </div>
-          <div class="ed2-labels">
-            <span style="left: 25%">Lado izquierdo</span>
-            <span style="left: 50%">Centro de la taza</span>
-            <span style="left: 75%">Lado derecho</span>
-          </div>
           <div class="ed2-dimensions">
             Área imprimible · <span id="dim-text">22.9 × 8.9 cm</span> · Taza 11oz
           </div>
@@ -282,13 +275,17 @@
         </div>
       </div>
 
-      <div id="viewer" class="canvas-preview">
+      <div id="viewer" class="canvas-preview canvas-preview--mini">
         <!-- Expand-to-full button. Only visible in mini mode (CSS).
              Clicks on this button expand the preview; clicks/drags
              anywhere else on the mini orbit the camera. -->
         <button class="preview-expand-btn" id="expand-preview" type="button" title="Ampliar a preview" aria-label="Ampliar a preview">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
         </button>
+        <!-- Angle indicator — shows the current camera rotation around the
+             Y axis. 0° = dead-front (+Z), 90° = right side (+X), 180° = back
+             (-Z), 270° = left side (-X). Updates on every camera change. -->
+        <div class="viewer-angle" id="viewer-angle">0°</div>
         <!-- One-time rotate hint. Shown the first time the cursor enters
              the mini in an edit session; hides when the user actually
              rotates (drags) the mug, or after a short timeout. -->
@@ -307,7 +304,6 @@
         </button>
       </div>
 
-      <div id="empty-hint" class="empty-hint">Subí o arrastrá una imagen para empezar</div>
     </main>
 
     <button class="feedback-btn" type="button">Feedback</button>

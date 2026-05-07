@@ -355,72 +355,101 @@ input, select { font: inherit; }
 .editar-capa-section[hidden] { display: none; }
 
 /* Product info card — top of the Producto tab. Read-only, describes the
-   product being designed. Mirrors the Gudink site convention. */
+   product being designed. Vertical layout: two-column header (image +
+   title/desc) on top, full-width meta data and price below, so the meta
+   key/value rows can use the full panel width without text wrapping
+   awkwardly into a narrow column. */
 .product-info-card {
   display: flex;
-  gap: 12px;
-  padding: 12px;
+  flex-direction: column;
+  padding: 14px;
   background: #fafaf8;
   border: 1px solid #ececea;
   border-radius: 10px;
 }
+.product-info-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
 .product-info-thumb {
   flex-shrink: 0;
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #fff;
   border: 1px solid #ececea;
   border-radius: 8px;
+  overflow: hidden;
 }
-.product-info-body {
+.product-info-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.product-info-summary {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding-top: 2px;
 }
 .product-info-title {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
   color: #1a1a1a;
+  letter-spacing: -0.01em;
 }
 .product-info-desc {
   margin: 0;
-  font-size: 11px;
-  line-height: 1.4;
-  color: #888;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #6b6b67;
 }
+/* Full-width meta — each row is dt on the left (muted) and dd on the right
+   (primary), separated by a thin divider above. Using the full container
+   width lets long values like "Apta para microondas y lavavajillas" sit on
+   one line instead of wrapping into 3-4 lines in a narrow column. */
 .product-info-meta {
-  margin: 6px 0 0;
+  margin: 14px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid #ececea;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  font-size: 11px;
+  gap: 7px;
+  font-size: 11.5px;
 }
 .product-info-meta > div {
   display: flex;
-  gap: 6px;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
 }
 .product-info-meta dt {
-  flex: 0 0 auto;
-  color: #999;
+  color: #888;
   font-weight: 400;
+  flex-shrink: 0;
 }
-.product-info-meta dt::after { content: ":"; }
 .product-info-meta dd {
   margin: 0;
   color: #1a1a1a;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 .product-info-price {
-  margin-top: 8px;
-  font-size: 14px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #ececea;
+  font-size: 16px;
   font-weight: 600;
   color: #1a1a1a;
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 /* Primary export button (Producto > Acciones) */
@@ -602,13 +631,10 @@ input, select { font: inherit; }
   z-index: 1;
 }
 
-/* Mug-orientation icons — positioned absolutely at 25/50/75% so they
-   align with the 3 vertical centerline guides below. */
-.ed2-icons {
-  position: relative;
-  height: 56px;
-  margin-bottom: 8px;
-}
+/* Mug-orientation icons — hidden. The 3-mug layout (left/front/right)
+   suggested a 3-section split that conflicts with the simpler "Frente at
+   canvas-25%" model. Markup kept for potential re-use. */
+.ed2-icons { display: none; }
 .ed2-mug {
   position: absolute;
   top: 0;
@@ -656,51 +682,36 @@ input, select { font: inherit; }
    2.65:1 canvas (257.6 × 91 mm unwrapped cylinder) that's 1.15% of HEIGHT
    on top/bottom and 0.43% of WIDTH on left/right (both ≈ 1 mm absolute). */
 .ed2-print-area {
-  position: absolute;
-  top: 1.15%;
-  bottom: 1.15%;
-  left: 0.43%;
-  right: 0.43%;
-  border: 1px solid rgba(0, 0, 0, 0.18);
-  pointer-events: none;
-  border-radius: 2px;
-  z-index: 2;
+  display: none;
 }
 
-/* Placement Zone Guide — permanently visible orientation marker for the mug's
-   "Frente" (front face) zone, matching Fourthwall's always-on design zone UX.
-   JS toggles [hidden] in renderLayerList(): shown when no layers exist,
-   hidden once the user has placed a design (guide is no longer needed).
-   During file drag, the border pulses slightly brighter so it doubles as
-   a drop-target indicator. */
+/* Placement Zone Guide — permanently visible orientation marker for the
+   mug's center / front-face zone. Matches Fourthwall's design exactly:
+   thin black dotted outline, no fill, small gray label centered at the
+   bottom of the zone. Shown only when no layers exist; JS toggles [hidden]
+   in renderLayerList(). */
 .ed2-placement-guide {
   position: absolute;
-  top: 1.15%;
-  bottom: 1.15%;
-  left: 33.33%;
-  right: 33.33%;
-  border: 2px dashed rgba(59, 130, 246, 0.50);
-  background: rgba(59, 130, 246, 0.04);
-  border-radius: 3px;
+  top: 12%;
+  bottom: 12%;
+  left: 8.33%;
+  right: 58.33%;
+  border: 1.5px dotted rgba(0, 0, 0, 0.55);
+  background: transparent;
+  border-radius: 2px;
   pointer-events: none;
   z-index: 6;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding-bottom: 8px;
-  transition: border-color 0.18s ease, background 0.18s ease;
+  padding-bottom: 6px;
 }
 .ed2-placement-guide[hidden] { display: none; }
-body.dragging .ed2-placement-guide:not([hidden]) {
-  border-color: rgba(59, 130, 246, 0.85);
-  background: rgba(59, 130, 246, 0.09);
-}
 .ed2-placement-guide-label {
   font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(59, 130, 246, 0.65);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: rgba(0, 0, 0, 0.45);
   line-height: 1;
 }
 
@@ -736,12 +747,11 @@ body.dragging .ed2-placement-guide:not([hidden]) {
 .ed2-upload-btn:hover { background: #1f2937; }
 .ed2-upload-btn[hidden] { display: none; }
 
-/* Bleed: thin gray bands marking the rim/base/handle margin. */
+/* Bleed: hidden — Fourthwall doesn't show the rim/base/handle margin
+   visually. The bleed math still applies to the print export, but the
+   gray bands are not drawn on the editor canvas. */
 .ed2-bleed {
-  position: absolute;
-  background: rgba(0, 0, 0, 0.10);
-  pointer-events: none;
-  z-index: 1;
+  display: none;
 }
 .ed2-bleed--top    { left: 0; right: 0; top: 0;    height: 1.15%; }
 .ed2-bleed--bottom { left: 0; right: 0; bottom: 0; height: 1.15%; }
@@ -979,6 +989,13 @@ body.dragging .ed2-placement-guide:not([hidden]) {
 }
 @keyframes mini-hint-spin {
   to { transform: rotate(360deg); }
+}
+
+/* Angle indicator — hidden by default. Used during calibration only.
+   The JS still updates its textContent so it can be flipped on via dev
+   tools or a debug flag without code changes. */
+.viewer-angle {
+  display: none;
 }
 
 /* Floating "Resetear vista" pill in the 3D viewer corner. Only visible

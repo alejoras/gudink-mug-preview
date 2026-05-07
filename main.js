@@ -79,14 +79,12 @@ scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.02).texture;
 
 // ---------- Camera & controls ----------
 const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.01, 100);
-// Default product-hero angle: ~60° rotated from front, slight elevation,
-// so the handle is visible on the LEFT of the frame and the printed
-// design wraps around to the RIGHT. This matches standard print-on-
-// demand product photography (Printful, Printify, Fourthwall) and is
-// what users expect to see in the live mockup mini panel + initial
-// preview. The "Frente" preset in the mockup gallery still shows a
-// dead-front view as a distinct angle.
-const DEFAULT_POS = new THREE.Vector3(0.18, 0.045, 0.10);
+// Default view: 270° (camera at -X direction, slight elevation). This is
+// the "Frente" — the side of the mug that faces the audience when a
+// right-handed person holds it. The Frente placement zone (canvas-25%)
+// maps directly to this 270° camera position, so a design uploaded with
+// the default offsetX (-0.25) is immediately visible head-on.
+const DEFAULT_POS = new THREE.Vector3(-0.21, 0.045, 0);
 const DEFAULT_TARGET = new THREE.Vector3(0, 0, 0);
 camera.position.copy(DEFAULT_POS);
 
@@ -98,6 +96,41 @@ controls.minDistance = 0.10;
 controls.maxDistance = 0.60;
 controls.enablePan = true;
 
+// Live angle indicator — recompute the camera's Y rotation on every change
+// and write it into the viewer-angle badge. Angle is measured CCW from +Z:
+// 0° = dead-front, 90° = right side (+X), 180° = back, 270° = left side.
+const angleEl = document.getElementById('viewer-angle');
+function updateAngleDisplay() {
+  if (!angleEl) return;
+  const x = camera.position.x;
+  const z = camera.position.z;
+  let deg = Math.atan2(x, z) * 180 / Math.PI;
+  if (deg < 0) deg += 360;
+  angleEl.textContent = `${Math.round(deg)}°`;
+}
+controls.addEventListener('change', updateAngleDisplay);
+updateAngleDisplay();
+
+// Position the camera to look head-on at whatever cylinder position
+// corresponds to the active layer's offsetX. With mugTexture.offset.x = 0.5:
+//   canvas-50% (offsetX=0)   → mesh u=0   → +Z direction (front, 0°)
+//   canvas-25% (offsetX=-0.25) → mesh u=-0.25 → -X direction (left side, 270°)
+//   canvas-75% (offsetX=+0.25) → mesh u=+0.25 → +X direction (right side, 90°)
+// Camera follows on explicit actions (upload, "Centrar") — not on slider drag,
+// so the user can manually rotate the mug to inspect other angles.
+const CAMERA_DISTANCE = 0.21;
+const CAMERA_HEIGHT = 0.045;
+function positionCameraForOffset(offsetX) {
+  const angle = 2 * Math.PI * (offsetX || 0);
+  camera.position.set(
+    CAMERA_DISTANCE * Math.sin(angle),
+    CAMERA_HEIGHT,
+    CAMERA_DISTANCE * Math.cos(angle),
+  );
+  controls.target.set(0, 0, 0);
+  controls.update();
+}
+
 // ---------- Lighting (slightly warm key, cool rim) ----------
 scene.add(new THREE.AmbientLight(0xfff8ee, 0.30));
 
@@ -105,7 +138,11 @@ scene.add(new THREE.AmbientLight(0xfff8ee, 0.30));
 // glaze + clearcoat, the previous value was over-illuminating bright
 // regions of the printed texture and washing them out.
 const keyLight = new THREE.DirectionalLight(0xfff5e6, 1.05);
-keyLight.position.set(0.25, 0.45, 0.30);
+// Key light at ~282° angle (slight offset from the dead-Frente 270° direction
+// for natural shadow definition). Position is mostly -X with small +Z bias so
+// the light hits the Frente face near-frontally, with the highlight rolling
+// off toward the audience-right edge.
+keyLight.position.set(-0.40, 0.35, 0.08);
 keyLight.castShadow = true;
 // Larger map + bigger PCF radius = visibly softer/blurrier shadow penumbra
 keyLight.shadow.mapSize.set(4096, 4096);
@@ -121,11 +158,11 @@ keyLight.shadow.blurSamples = 24;
 scene.add(keyLight);
 
 const rimLight = new THREE.DirectionalLight(0xeaf0ff, 0.55);
-rimLight.position.set(-0.30, 0.20, -0.25);
+rimLight.position.set(0.30, 0.20, -0.25);
 scene.add(rimLight);
 
 const fillLight = new THREE.DirectionalLight(0xffffff, 0.20);
-fillLight.position.set(-0.05, -0.20, 0.30);
+fillLight.position.set(0.05, -0.20, 0.30);
 scene.add(fillLight);
 
 // ---------- Ground (shadow only) ----------
@@ -151,8 +188,9 @@ mugTexture.colorSpace = THREE.SRGBColorSpace;
 mugTexture.wrapS = THREE.RepeatWrapping;
 mugTexture.wrapT = THREE.ClampToEdgeWrapping;
 mugTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-// Cylinder UV starts at +Z (camera-facing). Offset 0.5 puts the canvas seam at
-// the back of the mug; the image, centered at canvas U=0.5, lands on the front.
+// Cylinder UV starts at +Z (camera-facing). Offset 0.5 aligns the canvas
+// center with the front face of the mug — design centered on canvas-50%
+// lands head-on at the camera view.
 mugTexture.offset.x = 0.5;
 
 // Letterbox fractions for the print area inside the full unwrapped canvas.
@@ -452,7 +490,9 @@ async function handleFiles(files) {
         thumbDataUrl: makeThumbnail(bitmap),
         name: file.name || `Capa ${state.layers.length + 1}`,
         scale: 1.0,
-        offsetX: 0,
+        // Default to the Frente placement zone (canvas-25% = camera 270°)
+        // so new uploads land where the user expects designs to live.
+        offsetX: -0.25,
         offsetY: 0,
       };
       state.layers.push(layer);
@@ -467,7 +507,12 @@ async function handleFiles(files) {
     syncAllSliders();
     renderLayerList();
     renderActiveLayerSection();
-    hint.classList.add('hidden');
+    if (hint) hint.classList.add('hidden');
+    // Reset 3D camera to look head-on at whatever cylinder position the
+    // active layer's offsetX maps to, so the design is centered in the
+    // 3D mini preview right after upload.
+    const layer = getActiveLayer();
+    positionCameraForOffset(layer ? layer.offsetX : 0);
   }
 }
 
@@ -523,12 +568,15 @@ document.getElementById('reset-view').addEventListener('click', () => {
 // Path B (future): pre-shot mug photos with masked print areas, server
 // composits the design onto each. Matches Printful's lifestyle quality.
 
+// Mockup camera presets, all anchored to the new Frente orientation:
+// the Frente face is at -X (270°), audience-right is +Z, audience-left is
+// -Z (the handle side). Cameras orbit at distance 0.22 around the mug.
 const MOCKUP_PRESETS = [
-  { id: 'front',         name: 'Frente',                pos: [0,     0.05, 0.22], target: [0, 0, 0]     },
-  { id: 'three-quarter', name: 'Tres cuartos derecho',  pos: [0.13,  0.05, 0.18], target: [0, 0, 0]     },
-  { id: 'profile-right', name: 'Perfil derecho',        pos: [0.20,  0.05, 0.10], target: [0, 0, 0]     },
-  { id: 'profile-left',  name: 'Perfil izquierdo',      pos: [-0.20, 0.05, 0.10], target: [0, 0, 0]     },
-  { id: 'top-angle',     name: 'Vista superior',        pos: [0,     0.16, 0.18], target: [0,-0.02, 0]  },
+  { id: 'front',         name: 'Frente',                pos: [-0.22, 0.05, 0],     target: [0, 0, 0]     },
+  { id: 'three-quarter', name: 'Tres cuartos derecho',  pos: [-0.18, 0.05, 0.13],  target: [0, 0, 0]     },
+  { id: 'profile-right', name: 'Perfil derecho',        pos: [0,     0.05, 0.22],  target: [0, 0, 0]     },
+  { id: 'profile-left',  name: 'Perfil izquierdo',      pos: [0,     0.05, -0.22], target: [0, 0, 0]     },
+  { id: 'top-angle',     name: 'Vista superior',        pos: [-0.18, 0.16, 0.05],  target: [0,-0.02, 0]  },
 ];
 const MOCKUP_RENDER_SIZE = 1200;  // px square — high enough for store listings
 
@@ -961,11 +1009,16 @@ function updateImageBbox() {
   const bbox = document.getElementById('image-bbox');
   if (!bbox) return;
   const layer = getActiveLayer();
+  // Placement Zone Guide tracks the bbox: visible only when a layer is
+  // selected, hidden when nothing is selected — matches Fourthwall.
+  const guide = document.querySelector('.ed2-placement-guide');
   if (!layer) {
     bbox.hidden = true;
+    if (guide) guide.hidden = true;
     return;
   }
   bbox.hidden = false;
+  if (guide) guide.hidden = false;
 
   const { wFrac, hFrac } = getPrintAreaFracs();
   const printAreaW = TEX_W * wFrac;
@@ -1229,8 +1282,9 @@ leftbarTabs.forEach((tab) => {
 
 sidePanelClose.addEventListener('click', closeSidePanel);
 
-// Default: open Diseño panel so the user lands on the layer list / dropzone.
-openSidePanel('design');
+// Default: side panel closed. The canvas + upload button are the focus on
+// first load; the Diseño / Producto panels open only when the user clicks
+// their leftbar tabs.
 renderLayerList();
 renderActiveLayerSection();
 
@@ -1526,10 +1580,13 @@ function syncAllSliders() {
 document.getElementById('qa-center')?.addEventListener('click', () => {
   const layer = getActiveLayer();
   if (!layer) return;
-  layer.offsetX = 0;
+  // "Centrar" snaps the design to the Frente placement zone (canvas-25%)
+  // and rotates the camera to 270° to face it head-on.
+  layer.offsetX = -0.25;
   layer.offsetY = 0;
   drawTexture();
   syncAllSliders();
+  positionCameraForOffset(-0.25);
 });
 
 // Ajustar: reset scale to "fit" (1.0) and re-center vertically. Horizontal
@@ -1581,16 +1638,19 @@ function deleteLayer(layerId) {
   syncAllSliders();
   renderLayerList();
   renderActiveLayerSection();
-  if (state.layers.length === 0) hint.classList.remove('hidden');
 }
 
 function setActiveLayer(layerId) {
-  if (!state.layers.find((l) => l.id === layerId)) return;
+  const layer = state.layers.find((l) => l.id === layerId);
+  if (!layer) return;
   state.activeLayerId = layerId;
   drawTexture();
   syncAllSliders();
   renderLayerList();
   renderActiveLayerSection();
+  // Camera follows the newly-selected layer so the user immediately sees
+  // it centered in the 3D preview.
+  positionCameraForOffset(layer.offsetX);
 }
 
 // Re-render the layer list panel from state. Called on add / remove /
@@ -1672,14 +1732,12 @@ function renderLayerList() {
       : (state.layers.length === 0 ? 'Subir imagen' : 'Agregar capa');
   }
 
-  // Canvas upload button + Placement Zone Guide — both visible only when
-  // no layers exist. Guide acts as permanent orientation (Fourthwall-style);
-  // upload button invites the first action.
+  // Canvas upload button shows in empty state only.
+  // (Placement Zone Guide visibility is driven by updateImageBbox(), which
+  // ties it to layer selection — matches Fourthwall's "guide on selection".)
   const empty = state.layers.length === 0;
   const canvasUploadBtn = document.getElementById('canvas-upload-btn');
   if (canvasUploadBtn) canvasUploadBtn.hidden = !empty;
-  const placementGuide = document.querySelector('.ed2-placement-guide');
-  if (placementGuide) placementGuide.hidden = !empty;
 }
 
 // Canvas upload button click → trigger file input (same as dropzone).
