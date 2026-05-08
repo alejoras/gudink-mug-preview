@@ -660,12 +660,17 @@ input, select { font: inherit; }
 .ed2-canvas-wrap {
   position: relative;
   width: 100%;
-  aspect-ratio: 2.65 / 1;
+  /* Aspect ratio matches the physical print area (20.5 × 8.5 cm) — the entire
+     visible white canvas is printable. Anything outside is the cylinder's
+     handle / bleed margin and is not editable from this view. */
+  aspect-ratio: 20.5 / 8.5;
   background: #fff;
   border: 1px solid #d8d6d2;
-  /* overflow:visible so bbox corner handles are visible even when image
-     reaches the canvas edges. The texture canvas underneath is a real
-     <canvas> so its raster stays clipped to its own bounds. */
+  /* overflow:visible so bbox corner handles remain visible even when the
+     image overflows the print area edges. The texture canvas underneath is a
+     real <canvas> so the painted image raster is naturally clipped to its
+     own bounds — only the bbox/handles div extends outside, which is what
+     we want for resize affordance. */
   overflow: visible;
   border-radius: 6px;
   user-select: none;
@@ -688,18 +693,12 @@ input, select { font: inherit; }
   display: none;
 }
 
-/* Placement Zone Guide — permanently visible orientation marker for the
-   mug's center / front-face zone. Matches Fourthwall's design exactly:
-   thin black dotted outline, no fill, small gray label centered at the
-   bottom of the zone. Shown only when no layers exist; JS toggles [hidden]
-   in renderLayerList(). */
+/* Placement Zone Guide — covers the entire print area when no layers exist
+   to indicate "your design goes here". Hidden as soon as a layer is added. */
 .ed2-placement-guide {
   position: absolute;
-  top: 12%;
-  bottom: 12%;
-  left: 8.33%;
-  right: 58.33%;
-  border: 1.5px dotted rgba(0, 0, 0, 0.55);
+  inset: 0;
+  border: 1.5px dotted rgba(0, 0, 0, 0.45);
   background: transparent;
   border-radius: 2px;
   pointer-events: none;
@@ -1001,27 +1000,6 @@ input, select { font: inherit; }
   display: none;
 }
 
-/* Floating "Resetear vista" pill in the 3D viewer corner. Only visible
-   when the viewer is shown (i.e. preview mode). */
-.preview-reset-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 4;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #1a1a1a;
-  border: 1px solid #e6e5e2;
-  border-radius: 999px;
-  font-size: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-.preview-reset-btn:hover { background: #fff; border-color: #d8d6d2; }
 /* Lock the WebGL canvas to the container regardless of what Three.js writes
    into its inline width/height styles. Belt + suspenders for the case where
    the bitmap and CSS style fall out of sync. */

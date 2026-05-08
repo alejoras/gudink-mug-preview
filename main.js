@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 
 // ---------- Mug constants (meters) ----------
 const MUG = {
@@ -32,6 +33,19 @@ const innerRbot = MUG.bottomRadius - 2 * r;
 const TEX_W = 2048;
 const TEX_H = Math.round(TEX_W * bodyHeight / (2 * Math.PI * MUG.topRadius));
 
+// Print area in physical units. Source of truth for 11oz mug production.
+// Real production constraint: handle blocks ~5 cm of circumference, leaving
+// 20.5 cm of usable horizontal print width. Vertical headroom = body height
+// minus the standard 8 mm Print-on-Demand bleed at top and base of the mug.
+const PRINT_AREA_CM = {
+  width: 20.5,
+  height: 8.9,
+};
+
+// Mug body unwrap dimensions, derived from MUG geometry.
+const UNWRAP_W_CM = 2 * Math.PI * MUG.topRadius * 100;  // ≈ 25.76 cm
+const UNWRAP_H_CM = bodyHeight * 100;                    // ≈ 9.10 cm
+
 const MAX_LAYERS = 5;
 
 // Each layer: { id, imageBitmap, thumbDataUrl, name, scale, offsetX, offsetY }
@@ -39,7 +53,6 @@ const MAX_LAYERS = 5;
 // layer is the one whose bbox is shown and that the sliders/handles modify.
 const state = {
   bodyColor: '#ffffff',
-  wrapMode: 'front',
   layers: [],
   activeLayerId: null,
 };
@@ -84,7 +97,10 @@ const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerH
 // right-handed person holds it. The Frente placement zone (canvas-25%)
 // maps directly to this 270° camera position, so a design uploaded with
 // the default offsetX (-0.25) is immediately visible head-on.
-const DEFAULT_POS = new THREE.Vector3(-0.21, 0.045, 0);
+// Camera defaults to a head-on view of the printable face (looking down -Z),
+// since the mug is rotated so canvas_u = 0.5 lands at +Z. The 0.045 elevation
+// gives a slight downward tilt that reads more product-photo than schematic.
+const DEFAULT_POS = new THREE.Vector3(0, 0.045, 0.21);
 const DEFAULT_TARGET = new THREE.Vector3(0, 0, 0);
 camera.position.copy(DEFAULT_POS);
 
@@ -178,14 +194,20 @@ ground.receiveShadow = true;
 scene.add(ground);
 
 // ---------- Texture (canvas-backed) ----------
-// Two canvases share the same dimensions and design layers:
-//   texCanvas    — visible in the editor; always painted with WHITE bg so
-//                   the editor stays light regardless of mug body color.
-//   textureCanvas — hidden, backs the 3D CanvasTexture; painted with the
-//                   body color so the 3D mug shows the correct material.
+// Two canvases with DIFFERENT dimensions:
+//   texCanvas    — visible in the editor, sized to the print area only
+//                   (≈ 1631 × 676 px = 20.5 × 8.5 cm). Everything inside is
+//                   printable; the user never sees the bleed/handle area.
+//   textureCanvas — hidden, backs the 3D CanvasTexture. Sized to the full
+//                   cylinder unwrap (TEX_W × TEX_H = 2048 × 724) so the 3D
+//                   mug wraps correctly. Built by compositing texCanvas into
+//                   the centered letterbox + filling the bleed with body color.
+const EDITOR_W = Math.round(TEX_W * PRINT_AREA_CM.width / UNWRAP_W_CM);
+const EDITOR_H = Math.round(TEX_H * PRINT_AREA_CM.height / UNWRAP_H_CM);
+
 const texCanvas = document.createElement('canvas');
-texCanvas.width = TEX_W;
-texCanvas.height = TEX_H;
+texCanvas.width = EDITOR_W;
+texCanvas.height = EDITOR_H;
 const texCtx = texCanvas.getContext('2d');
 
 const textureCanvas = document.createElement('canvas');
@@ -195,26 +217,37 @@ const textureCtx = textureCanvas.getContext('2d');
 
 const mugTexture = new THREE.CanvasTexture(textureCanvas);
 mugTexture.colorSpace = THREE.SRGBColorSpace;
-mugTexture.wrapS = THREE.RepeatWrapping;
+// The loaded OBJ's body UVs occupy a sub-rectangle of [0,1]² (the bottom-right
+// of the artist's UV layout). We map our existing canvas onto exactly that
+// rectangle via texture transform. ClampToEdge on both axes so that any UVs
+// outside the body region (the handle, etc.) sample the canvas border (kept
+// white) instead of wrapping the design weirdly.
+mugTexture.wrapS = THREE.ClampToEdgeWrapping;
 mugTexture.wrapT = THREE.ClampToEdgeWrapping;
 mugTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-// Cylinder UV starts at +Z (camera-facing). Offset 0.5 aligns the canvas
-// center with the front face of the mug — design centered on canvas-50%
-// lands head-on at the camera view.
-mugTexture.offset.x = 0.5;
-
-// Letterbox fractions for the print area inside the full unwrapped canvas.
-// 0.991 × 0.977 ≈ uniform 1mm bleed on a 257.6 × 91 mm cylinder unwrap.
-const PRINT_AREA_W_FRAC_FRONT = 0.991;
-const PRINT_AREA_W_FRAC_FULL = 1.0;
-const PRINT_AREA_H_FRAC = 0.977;
-
-function getPrintAreaFracs() {
-  return {
-    wFrac: state.wrapMode === 'full' ? PRINT_AREA_W_FRAC_FULL : PRINT_AREA_W_FRAC_FRONT,
-    hFrac: PRINT_AREA_H_FRAC,
-  };
-}
+// Body UV sub-region for the user's printable design. Values determined
+// empirically by painting test patterns on the loaded model and measuring
+// the visible aspect ratio of a known canvas square on the rendered mug.
+//
+// Three things the V range controls together:
+//   1. **Bleed-through**: full body UV is u∈[0.175,1.0], v∈[0,0.45], but the
+//      upper portion (V > ~0.36) wraps over the rim into the cup's interior.
+//      Anything painted there shows up on the inside surface.
+//   2. **Margin**: real-world print-on-demand always leaves ~5-10mm of bare
+//      ceramic at the rim and the base. Designs that touch the rolled edges
+//      look amateur and aren't actually printable on a real ceramic mug.
+//   3. **Aspect ratio**: the canvas is 2048×723 (2.83 W:H), but the mug body
+//      is roughly 251mm circumference × ~67mm of usable print zone (3.75 W:H).
+//      Mapping the canvas v 1:1 onto the body would over-stretch designs
+//      vertically — a perfect canvas square ends up as a tall rectangle on
+//      the mug. To compensate, V range = 0.270 (calibrated empirically: a
+//      500×500 canvas square renders as 290×285 visible px = aspect 1.018).
+//
+// Mapping model_uv → canvas_uv: canvas_uv = model_uv * repeat + offset
+const BODY_U0 = 0.175, BODY_U1 = 1.000;
+const BODY_V0 = 0.045, BODY_V1 = 0.315;
+mugTexture.repeat.set(1 / (BODY_U1 - BODY_U0), 1 / (BODY_V1 - BODY_V0));
+mugTexture.offset.set(-BODY_U0 / (BODY_U1 - BODY_U0), -BODY_V0 / (BODY_V1 - BODY_V0));
 
 // Compute base-fit dimensions for a given layer onto a print area of size
 // (areaW, areaH). "Base" means scale=1 (image letterboxed inside the area
@@ -234,41 +267,46 @@ function layerBaseDraw(layer, areaW, areaH) {
   return { baseW, baseH, imgRatio };
 }
 
-// Paint all layers into ctx of size w × h. The ratio between (w, h) and the
-// print area inside is constant (the print area is letterboxed by wFrac/hFrac
-// of total). Used by both drawTexture (texCanvas at TEX_W × TEX_H) and the
-// print exporter (high-res offscreen canvas).
+// Paint all layers into ctx of size w × h. (w, h) IS the print area — there is
+// no internal letterbox. Used by drawTexture (texCanvas at EDITOR_W × EDITOR_H)
+// and the print exporter (high-res offscreen canvas at the same aspect).
 function paintLayers(ctx, w, h, opts = {}) {
   if (opts.fillBg !== false) {
     ctx.fillStyle = opts.bgColor || state.bodyColor;
     ctx.fillRect(0, 0, w, h);
   }
-  const { wFrac, hFrac } = getPrintAreaFracs();
-  const printAreaW = w * wFrac;
-  const printAreaH = h * hFrac;
-  const printAreaX = (w - printAreaW) / 2;
-  const printAreaY = (h - printAreaH) / 2;
-
   ctx.imageSmoothingQuality = 'high';
   for (const layer of state.layers) {
     if (!layer.imageBitmap) continue;
-    const { baseW, baseH } = layerBaseDraw(layer, printAreaW, printAreaH);
+    const { baseW, baseH } = layerBaseDraw(layer, w, h);
     const drawW = baseW * layer.scale;
     const drawH = baseH * layer.scale;
-    const drawX = printAreaX + (printAreaW - drawW) / 2 + layer.offsetX * w;
-    const drawY = printAreaY + (printAreaH - drawH) / 2 + layer.offsetY * h;
+    const drawX = (w - drawW) / 2 + layer.offsetX * w;
+    const drawY = (h - drawH) / 2 + layer.offsetY * h;
     ctx.drawImage(layer.imageBitmap, drawX, drawY, drawW, drawH);
   }
+}
+
+// Composite texCanvas (print area) into textureCanvas (full cylinder unwrap)
+// for 3D rendering. Bleed area = handle backside + top/bottom margin, never
+// visible from the editor — fill with body color so the 3D mug shows correct
+// material there.
+function compositeToTexture() {
+  textureCtx.fillStyle = state.bodyColor;
+  textureCtx.fillRect(0, 0, TEX_W, TEX_H);
+  const dx = (TEX_W - EDITOR_W) / 2;
+  const dy = (TEX_H - EDITOR_H) / 2;
+  textureCtx.drawImage(texCanvas, dx, dy);
+  mugTexture.needsUpdate = true;
 }
 
 function drawTexture() {
   // Editor canvas: always white background so the canvas itself stays
   // light regardless of which body color the user picked.
-  paintLayers(texCtx, TEX_W, TEX_H, { bgColor: '#ffffff' });
-  // 3D texture canvas: filled with the actual body color so the 3D mug
-  // renders the correct material in empty (no-design) areas.
-  paintLayers(textureCtx, TEX_W, TEX_H);
-  mugTexture.needsUpdate = true;
+  paintLayers(texCtx, EDITOR_W, EDITOR_H, { bgColor: '#ffffff' });
+  // 3D texture: composite the print-area design into the unwrap with body
+  // color filling the bleed.
+  compositeToTexture();
   if (typeof updateImageBbox === 'function') updateImageBbox();
   if (typeof updateQualityChip === 'function') updateQualityChip();
 }
@@ -282,8 +320,7 @@ const MM_PER_CANVAS_PX = (2 * Math.PI * MUG.topRadius * 1000) / TEX_W;
 
 function getLayerDPI(layer) {
   if (!layer.imageBitmap) return Infinity;
-  const { wFrac, hFrac } = getPrintAreaFracs();
-  const { baseW, baseH } = layerBaseDraw(layer, TEX_W * wFrac, TEX_H * hFrac);
+  const { baseW, baseH } = layerBaseDraw(layer, EDITOR_W, EDITOR_H);
   const drawWPx = baseW * layer.scale;
   const drawHPx = baseH * layer.scale;
   // Convert canvas px to inches via the isotropic mm/px ratio.
@@ -344,119 +381,57 @@ function arc2D(cx, cy, R, a0, a1, segments) {
 const mugGroup = new THREE.Group();
 scene.add(mugGroup);
 
-// 1. Printable body cylinder (between the two rounded edges)
-const body = new THREE.Mesh(
-  new THREE.CylinderGeometry(MUG.topRadius, MUG.bottomRadius, bodyHeight, 128, 1, true),
-  bodyMat
-);
-body.castShadow = true;
-body.receiveShadow = true;
-mugGroup.add(body);
-
-// 2. Top assembly (LatheGeometry): rim curl (180 deg) + inner wall + small inner-floor fillet + flat
-//    Profile is walked CCW so outer-rim normals point outward and inner-wall normals point inward.
-const rimCurl = arc2D(MUG.topRadius - r, cylTop, r, 0, Math.PI, 24);
-const fillR = 0.0015;
-const innerCornerCenter = { x: innerRbot - fillR, y: innerFloor + fillR };
-const innerCornerArc = arc2D(innerCornerCenter.x, innerCornerCenter.y, fillR, 0, -Math.PI / 2, 8);
-
-const topProfile = [
-  ...rimCurl,                                      // (Rt, cylTop) ... over the rim ... (Rt - 2r, cylTop)
-  // implicit straight line down the inner wall to the start of the floor fillet
-  ...innerCornerArc,                               // ends at (innerRbot - fillR, innerFloor)
-  new THREE.Vector2(0, innerFloor),                // flat across the inner bottom to the centre
-];
-const topAssembly = new THREE.Mesh(
-  new THREE.LatheGeometry(topProfile, 128),
-  ceramicMat
-);
-topAssembly.castShadow = true;
-topAssembly.receiveShadow = true;
-mugGroup.add(topAssembly);
-
-// 3. Bottom assembly (LatheGeometry): bottom flat + outer rounded corner
-//    Profile walks centre-out so the bottom face's normal points down.
-const bottomCorner = arc2D(MUG.bottomRadius - r, cylBot, r, -Math.PI / 2, 0, 16);
-const bottomProfile = [
-  new THREE.Vector2(0, -MUG.height / 2),
-  ...bottomCorner,                                 // (Rb-r, -H/2) ... (Rb, cylBot)
-];
-const bottomAssembly = new THREE.Mesh(
-  new THREE.LatheGeometry(bottomProfile, 128),
-  ceramicMat
-);
-bottomAssembly.castShadow = true;
-bottomAssembly.receiveShadow = true;
-mugGroup.add(bottomAssembly);
-
-// 4. Handle: TubeGeometry along a stadium-shaped centerline.
-//    Path (top → bottom): phantom inside body → top attach → top horizontal
-//    shelf → quarter-arc top corner → outer straight → quarter-arc bottom
-//    corner → bottom horizontal shelf → bottom attach → phantom inside body.
-const handlePts = [];
-const vR = MUG.handleVertR;
-const hExt = MUG.handleHorizExt;
-const Rc = MUG.handleCornerR;
-const eD = MUG.handleEmbed;
-const ARC_N = 10;
-const STR_N = 4;
-
-// Top phantom + attachment + shelf
-handlePts.push(new THREE.Vector3(-eD, vR, 0));
-handlePts.push(new THREE.Vector3(0, vR, 0));
-handlePts.push(new THREE.Vector3(hExt, vR, 0));
-
-// Top corner: quarter arc from (hExt, vR) to (hExt + Rc, vR - Rc), centered at (hExt, vR - Rc)
-for (let i = 1; i <= ARC_N; i++) {
-  const a = (Math.PI / 2) * (1 - i / ARC_N);
-  handlePts.push(new THREE.Vector3(
-    hExt + Rc * Math.cos(a),
-    (vR - Rc) + Rc * Math.sin(a),
-    0
-  ));
-}
-
-// Outer straight (vertical down) — intermediate samples between the two corners
-const outerLen = 2 * (vR - Rc);
-for (let i = 1; i < STR_N; i++) {
-  handlePts.push(new THREE.Vector3(
-    hExt + Rc,
-    (vR - Rc) - (i / STR_N) * outerLen,
-    0
-  ));
-}
-
-// Bottom corner: quarter arc from (hExt + Rc, -vR + Rc) to (hExt, -vR), centered at (hExt, -vR + Rc)
-for (let i = 0; i <= ARC_N; i++) {
-  const a = -(Math.PI / 2) * (i / ARC_N);
-  handlePts.push(new THREE.Vector3(
-    hExt + Rc * Math.cos(a),
-    (-vR + Rc) + Rc * Math.sin(a),
-    0
-  ));
-}
-
-// Bottom shelf + attachment + phantom
-handlePts.push(new THREE.Vector3(0, -vR, 0));
-handlePts.push(new THREE.Vector3(-eD, -vR, 0));
-
-const handleCurve = new THREE.CatmullRomCurve3(handlePts, false, 'catmullrom', 0.5);
-const handle = new THREE.Mesh(
-  new THREE.TubeGeometry(handleCurve, 160, MUG.handleTube, 20, false),
-  ceramicMat
-);
-// Handle lives at the BACK of the mug (-Z) so the front (+Z) — which is what
-// canvas U=0.5 maps to via mugTexture.offset.x = 0.5 — is the line OPPOSITE
-// the handle. This matches the print-on-demand convention where the canvas
-// seam is at the handle and the canvas center is the far side of the cylinder.
-// Default camera looks at +Z so the print is centered in view; the handle is
-// hidden behind the cylinder until the user orbits around.
-handle.position.set(0, 0, -MUG.topRadius);
-handle.rotation.y = Math.PI / 2;
-handle.scale.z = MUG.handleZScale;
-handle.castShadow = true;
-handle.receiveShadow = true;
-mugGroup.add(handle);
+// Mug geometry comes from a third-party OBJ (CGTrader artist-B "3D Cup Model
+// — Standard Size"). Procedural geometry (cylinder body, lathe top/bottom,
+// swept handle) was abandoned after many iterations couldn't make the handle
+// look organic without visible bumps at the inner-side joins. The OBJ has
+// professional UV unwrapping prepared for print-mockup work, with the body
+// occupying the bottom-right rectangle of [0,1]² UV space — that's what the
+// texture transform set up earlier is mapping our design canvas onto.
+//
+// The model contains two objects: "3D_Cup" (mug we want) and "Backdrop"
+// (a render-prop plane we hide). We override the model's default red-template
+// material with bodyMat (textured) and ceramicMat (handle/non-printable) so
+// the user's design ends up on the printable body and the rest stays plain
+// glazed ceramic.
+//
+// Coordinates: model is y-up, base near y=0, top near y=0.094m. We shift it
+// down so the mug centers at y=0 to match the camera/lighting setup.
+const objLoader = new OBJLoader();
+objLoader.load('mug-model/cup.obj', (root) => {
+  // Skip-list: parts of the model we don't want in the scene.
+  const HIDE = new Set(['Backdrop']);
+  let cupMesh = null;
+  root.traverse((child) => {
+    if (!child.isMesh) return;
+    if (HIDE.has(child.name)) {
+      child.visible = false;
+      return;
+    }
+    cupMesh = child;
+    child.material = bodyMat;
+    child.castShadow = true;
+    child.receiveShadow = true;
+  });
+  if (cupMesh) {
+    // Center the model vertically (model base sits near y=0).
+    const box = new THREE.Box3().setFromObject(cupMesh);
+    const cy = (box.min.y + box.max.y) / 2;
+    root.position.y -= cy;
+    // Rotate the mug so canvas_u = 0.5 (where centered designs live) lands on
+    // the visible front (+Z direction). The exact angle was tuned empirically
+    // by painting a vertical line at u=0.5 and iterating until it hit the
+    // mug's apparent center in the default front-on camera view. The seller's
+    // UV unwrap doesn't put u=0.5 at the front of the model as-loaded, hence
+    // this offset. Side effect: the handle ends up at the back-left of the
+    // mug rather than the camera-left (-X) — visible if you orbit, but the
+    // priority here is putting the design dead-center on the front face.
+    root.rotation.y = Math.PI - 1.35;
+  }
+  mugGroup.add(root);
+}, undefined, (err) => {
+  console.error('Failed to load mug OBJ:', err);
+});
 
 function updateBodyColor(hex) {
   state.bodyColor = hex;
@@ -465,6 +440,22 @@ function updateBodyColor(hex) {
 }
 
 drawTexture();
+
+// Dev hooks. Lets you paint test patterns and orbit the camera from the
+// browser console / Playwright while tuning UV mapping to a new model. Safe
+// to leave in — costs nothing at runtime and isn't referenced by app code.
+//   window.__dbg.textureCtx.fillStyle = 'red'; window.__dbg.textureCtx.fillRect(0,0,2048,2048); window.__dbg.mugTexture.needsUpdate = true;
+window.__dbg = {
+  THREE,
+  textureCanvas,
+  textureCtx,
+  mugTexture,
+  mugGroup,
+  camera,
+  controls,
+  renderer,
+  scene,
+};
 
 // ---------- File handling ----------
 const hint = document.getElementById('empty-hint');
@@ -562,13 +553,6 @@ document.body.addEventListener('drop', (e) => {
   dragCounter = 0;
   document.body.classList.remove('dragging');
   handleFiles(e.dataTransfer?.files);
-});
-
-// ---------- UI controls ----------
-document.getElementById('reset-view').addEventListener('click', () => {
-  camera.position.copy(DEFAULT_POS);
-  controls.target.copy(DEFAULT_TARGET);
-  controls.update();
 });
 
 // ---------- Mockup gallery (multi-angle product shots) ----------
@@ -764,8 +748,7 @@ document.getElementById('mockups-download-all')?.addEventListener('click', async
 // applies its own white base), and crops to exactly the print area — no
 // bleed bands, no body-color fill. This is the file that goes to production.
 //
-// Front-panel: 228.6 × 88.9 mm (Printful 11oz spec) → 2700 × 1050 px @ 300 DPI
-// Full wrap:   257.6 × 91.4 mm (cylinder circumference × bodyHeight) → matched
+// 11oz mug print area: 205 × 85 mm → ~2421 × 1004 px @ 300 DPI
 const PRINT_DPI = 300;
 const MM_PER_INCH = 25.4;
 
@@ -774,46 +757,26 @@ function exportPrintFile() {
     alert('Subí al menos una imagen antes de exportar el archivo de impresión.');
     return;
   }
-  // Physical print dimensions (mm) — front-panel uses Printful's published
-  // 11oz spec; full wrap uses the actual cylinder circumference & height.
-  const circumferenceMm = 2 * Math.PI * MUG.topRadius * 1000;
-  const bodyHeightMm = bodyHeight * 1000;
-  const wMm = state.wrapMode === 'full' ? circumferenceMm : 228.6;
-  const hMm = state.wrapMode === 'full' ? bodyHeightMm * PRINT_AREA_H_FRAC : 88.9;
+  // Physical print dimensions (mm) — fixed 11oz mug print area.
+  const wMm = PRINT_AREA_CM.width * 10;
+  const hMm = PRINT_AREA_CM.height * 10;
   const printPxW = Math.round(wMm / MM_PER_INCH * PRINT_DPI);
   const printPxH = Math.round(hMm / MM_PER_INCH * PRINT_DPI);
 
-  // Render the full virtual unwrap proportionally so the print area maps
-  // exactly to printPxW × printPxH after cropping out the bleed letterbox.
-  const { wFrac, hFrac } = getPrintAreaFracs();
-  const fullW = Math.round(printPxW / wFrac);
-  const fullH = Math.round(printPxH / hFrac);
-
-  const work = document.createElement('canvas');
-  work.width = fullW;
-  work.height = fullH;
-  const wctx = work.getContext('2d');
-  // Transparent background — printers want alpha 0 outside the design.
-  paintLayers(wctx, fullW, fullH, { fillBg: false });
-
-  const cropX = Math.round((fullW - printPxW) / 2);
-  const cropY = Math.round((fullH - printPxH) / 2);
+  // paintLayers now treats (w, h) as the print area directly — no letterbox,
+  // no crop step needed. Transparent background so the printer applies its
+  // own white base outside the design.
   const out = document.createElement('canvas');
   out.width = printPxW;
   out.height = printPxH;
-  out.getContext('2d').drawImage(
-    work,
-    cropX, cropY, printPxW, printPxH,
-    0, 0, printPxW, printPxH,
-  );
+  paintLayers(out.getContext('2d'), printPxW, printPxH, { fillBg: false });
 
   out.toBlob((blob) => {
     if (!blob) return;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const tag = state.wrapMode === 'full' ? 'wrap' : 'front';
-    a.download = `mug-print-${tag}-${printPxW}x${printPxH}-300dpi.png`;
+    a.download = `mug-print-${printPxW}x${printPxH}-300dpi.png`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -871,14 +834,6 @@ document.querySelectorAll('.color-swatch').forEach((sw) => {
   });
 });
 
-// Wrap mode is hard-coded to 'front' (panel frontal 270°) in v1 — covers
-// ~99% of mug SKUs. The 'full' (360°) code path stays in getPrintAreaFracs
-// and exportPrintFile for future re-exposure as a separate product variant.
-
-// Compute and display the printable area in cm. Derived from MUG.topRadius
-// (cylinder circumference) and bodyHeight, so if the geometry changes the
-// readout follows. Frontend mode = 88.7% of circumference (Printful spec for
-// 11oz: 228.6 × 88.9 mm); full wrap mode = 100% circumference.
 // Show the quality chip when the active layer's DPI drops below threshold.
 // Hidden when no active layer or when DPI is acceptable.
 function updateQualityChip() {
@@ -907,12 +862,7 @@ function updateQualityChip() {
 function updatePrintDimensions() {
   const el = document.getElementById('dim-text');
   if (!el) return;
-  const wFrac = state.wrapMode === 'full' ? 1 : 0.991;
-  const hFrac = 0.977;
-  const circumferenceMm = 2 * Math.PI * MUG.topRadius * 1000;
-  const wMm = wFrac * circumferenceMm;
-  const hMm = hFrac * bodyHeight * 1000;
-  el.textContent = `${(wMm / 10).toFixed(1)} × ${(hMm / 10).toFixed(1)} cm`;
+  el.textContent = `${PRINT_AREA_CM.width.toFixed(1)} × ${PRINT_AREA_CM.height.toFixed(1)} cm`;
 }
 updatePrintDimensions();
 
@@ -1035,30 +985,27 @@ function updateImageBbox() {
   bbox.hidden = false;
   if (guide) guide.hidden = false;
 
-  const { wFrac, hFrac } = getPrintAreaFracs();
-  const printAreaW = TEX_W * wFrac;
-  const printAreaH = TEX_H * hFrac;
-  const printAreaX = (TEX_W - printAreaW) / 2;
-  const printAreaY = (TEX_H - printAreaH) / 2;
-
-  const { baseW, baseH } = layerBaseDraw(layer, printAreaW, printAreaH);
+  // Editor canvas IS the print area now — no letterbox.
+  const { baseW, baseH } = layerBaseDraw(layer, EDITOR_W, EDITOR_H);
   const drawW = baseW * layer.scale;
   const drawH = baseH * layer.scale;
-  const drawX = printAreaX + (printAreaW - drawW) / 2 + layer.offsetX * TEX_W;
-  const drawY = printAreaY + (printAreaH - drawH) / 2 + layer.offsetY * TEX_H;
+  const drawX = (EDITOR_W - drawW) / 2 + layer.offsetX * EDITOR_W;
+  const drawY = (EDITOR_H - drawH) / 2 + layer.offsetY * EDITOR_H;
 
-  bbox.style.left = `${(drawX / TEX_W) * 100}%`;
-  bbox.style.top = `${(drawY / TEX_H) * 100}%`;
-  bbox.style.width = `${(drawW / TEX_W) * 100}%`;
-  bbox.style.height = `${(drawH / TEX_H) * 100}%`;
+  bbox.style.left = `${(drawX / EDITOR_W) * 100}%`;
+  bbox.style.top = `${(drawY / EDITOR_H) * 100}%`;
+  bbox.style.width = `${(drawW / EDITOR_W) * 100}%`;
+  bbox.style.height = `${(drawH / EDITOR_H) * 100}%`;
 
-  // Live size chip — convert canvas px to cm via the isotropic mm/px
-  // ratio (same constant as DPI calc). Display as "W × H cm" with one
-  // decimal, mirroring the dimensions readout convention below the canvas.
+  // Size chip reads the INTERSECTION of the image with the print area, i.e.
+  // what actually gets printed. When the image fully covers the print area,
+  // the chip reads 20.5 × 8.5 cm — matching the badge below the canvas.
   const sizeEl = document.getElementById('bbox-size-text');
   if (sizeEl) {
-    const wCm = (drawW * MM_PER_CANVAS_PX) / 10;
-    const hCm = (drawH * MM_PER_CANVAS_PX) / 10;
+    const visibleW = Math.min(drawW, EDITOR_W);
+    const visibleH = Math.min(drawH, EDITOR_H);
+    const wCm = (visibleW * MM_PER_CANVAS_PX) / 10;
+    const hCm = (visibleH * MM_PER_CANVAS_PX) / 10;
     sizeEl.textContent = `${wCm.toFixed(1)} × ${hCm.toFixed(1)} cm`;
   }
 }
@@ -1316,6 +1263,15 @@ function clearSnaps() {
   if (snapH) snapH.hidden = true;
 }
 
+// Free movement with generous overflow: the image's center can move up to the
+// canvas edge in each direction (so at least half the image stays visible).
+// Whatever lands outside the print area is clipped visually (CSS overflow:
+// hidden) but allowed — only the print-area-inside portion gets printed.
+function clampLayerOffsets(layer) {
+  layer.offsetX = Math.max(-0.5, Math.min(0.5, layer.offsetX));
+  layer.offsetY = Math.max(-0.5, Math.min(0.5, layer.offsetY));
+}
+
 function applySnap() {
   const layer = getActiveLayer();
   if (!layer) return;
@@ -1323,22 +1279,20 @@ function applySnap() {
   if (!base) return;
   const drawW = base.baseDrawW * layer.scale;
   const drawH = base.baseDrawH * layer.scale;
-  const cx = TEX_W / 2 + layer.offsetX * TEX_W;
-  const cy = TEX_H / 2 + layer.offsetY * TEX_H;
+  const cx = EDITOR_W / 2 + layer.offsetX * EDITOR_W;
+  const cy = EDITOR_H / 2 + layer.offsetY * EDITOR_H;
   const left = cx - drawW / 2;
   const right = cx + drawW / 2;
   const top = cy - drawH / 2;
   const bottom = cy + drawH / 2;
 
-  const { wFrac, hFrac } = getPrintAreaFracs();
-  const printAreaW = TEX_W * wFrac;
-  const printAreaH = TEX_H * hFrac;
-  const paLeft = (TEX_W - printAreaW) / 2;
-  const paRight = paLeft + printAreaW;
-  const paTop = (TEX_H - printAreaH) / 2;
-  const paBottom = paTop + printAreaH;
-  const paCx = TEX_W / 2;
-  const paCy = TEX_H / 2;
+  // Print area edges + center, in editor canvas coords (canvas IS the print area).
+  const paLeft = 0;
+  const paRight = EDITOR_W;
+  const paTop = 0;
+  const paBottom = EDITOR_H;
+  const paCx = EDITOR_W / 2;
+  const paCy = EDITOR_H / 2;
 
   // Vertical snap (X axis)
   const xCands = [{ pos: cx }, { pos: left }, { pos: right }];
@@ -1353,10 +1307,11 @@ function applySnap() {
     }
   }
   if (bestX) {
-    layer.offsetX = Math.max(-0.5, Math.min(0.5, layer.offsetX + bestX.delta / TEX_W));
+    layer.offsetX += bestX.delta / EDITOR_W;
+    clampLayerOffsets(layer);
     if (snapV) {
       snapV.hidden = false;
-      snapV.style.left = `${(bestX.target / TEX_W) * 100}%`;
+      snapV.style.left = `${(bestX.target / EDITOR_W) * 100}%`;
     }
   } else if (snapV) {
     snapV.hidden = true;
@@ -1375,10 +1330,11 @@ function applySnap() {
     }
   }
   if (bestY) {
-    layer.offsetY = Math.max(-0.4, Math.min(0.4, layer.offsetY + bestY.delta / TEX_H));
+    layer.offsetY += bestY.delta / EDITOR_H;
+    clampLayerOffsets(layer);
     if (snapH) {
       snapH.hidden = false;
-      snapH.style.top = `${(bestY.target / TEX_H) * 100}%`;
+      snapH.style.top = `${(bestY.target / EDITOR_H) * 100}%`;
     }
   } else if (snapH) {
     snapH.hidden = true;
@@ -1392,21 +1348,16 @@ let dragging = false;
 let dragLast = null;
 
 // Hit-test layers in reverse paint order (topmost first). Returns the layer
-// whose drawn rect contains (px, py) in TEX_W × TEX_H pixel space, or null.
+// whose drawn rect contains (px, py) in EDITOR_W × EDITOR_H pixel space, or null.
 function hitTestLayers(px, py) {
-  const { wFrac, hFrac } = getPrintAreaFracs();
-  const printAreaW = TEX_W * wFrac;
-  const printAreaH = TEX_H * hFrac;
-  const printAreaX = (TEX_W - printAreaW) / 2;
-  const printAreaY = (TEX_H - printAreaH) / 2;
   for (let i = state.layers.length - 1; i >= 0; i--) {
     const layer = state.layers[i];
     if (!layer.imageBitmap) continue;
-    const { baseW, baseH } = layerBaseDraw(layer, printAreaW, printAreaH);
+    const { baseW, baseH } = layerBaseDraw(layer, EDITOR_W, EDITOR_H);
     const drawW = baseW * layer.scale;
     const drawH = baseH * layer.scale;
-    const drawX = printAreaX + (printAreaW - drawW) / 2 + layer.offsetX * TEX_W;
-    const drawY = printAreaY + (printAreaH - drawH) / 2 + layer.offsetY * TEX_H;
+    const drawX = (EDITOR_W - drawW) / 2 + layer.offsetX * EDITOR_W;
+    const drawY = (EDITOR_H - drawH) / 2 + layer.offsetY * EDITOR_H;
     if (px >= drawX && px <= drawX + drawW && py >= drawY && py <= drawY + drawH) {
       return layer;
     }
@@ -1445,8 +1396,8 @@ canvasWrap.addEventListener('pointerdown', (e) => {
   if (e.target.closest('.ed2-bbox')) return;        // active bbox handles itself
   if (e.target.closest('.ed2-handle')) return;      // resize handles handle themselves
   const wrapRect = canvasWrap.getBoundingClientRect();
-  const px = ((e.clientX - wrapRect.left) / wrapRect.width) * TEX_W;
-  const py = ((e.clientY - wrapRect.top)  / wrapRect.height) * TEX_H;
+  const px = ((e.clientX - wrapRect.left) / wrapRect.width) * EDITOR_W;
+  const py = ((e.clientY - wrapRect.top)  / wrapRect.height) * EDITOR_H;
   const hit = hitTestLayers(px, py);
   if (!hit) {
     // Empty area inside the canvas → deselect
@@ -1483,8 +1434,9 @@ window.addEventListener('pointermove', (e) => {
   const wrapRect = canvasWrap.getBoundingClientRect();
   const dx = (e.clientX - dragLast.x) / wrapRect.width;
   const dy = (e.clientY - dragLast.y) / wrapRect.height;
-  layer.offsetX = Math.max(-0.5, Math.min(0.5, layer.offsetX + dx));
-  layer.offsetY = Math.max(-0.4, Math.min(0.4, layer.offsetY + dy));
+  layer.offsetX += dx;
+  layer.offsetY += dy;
+  clampLayerOffsets(layer);
   dragLast = { x: e.clientX, y: e.clientY };
   applySnap();
   drawTexture();
@@ -1529,10 +1481,7 @@ function syncScaleSlider() {
 function getBaseDraw() {
   const layer = getActiveLayer();
   if (!layer) return null;
-  const { wFrac, hFrac } = getPrintAreaFracs();
-  const { baseW, baseH, imgRatio } = layerBaseDraw(
-    layer, TEX_W * wFrac, TEX_H * hFrac,
-  );
+  const { baseW, baseH, imgRatio } = layerBaseDraw(layer, EDITOR_W, EDITOR_H);
   return { baseDrawW: baseW, baseDrawH: baseH, imgRatio };
 }
 
@@ -1551,8 +1500,8 @@ handles.forEach((handle) => {
     if (!layer) return;
     const base = getBaseDraw();
     if (!base) return;
-    const cx = TEX_W / 2 + layer.offsetX * TEX_W;
-    const cy = TEX_H / 2 + layer.offsetY * TEX_H;
+    const cx = EDITOR_W / 2 + layer.offsetX * EDITOR_W;
+    const cy = EDITOR_H / 2 + layer.offsetY * EDITOR_H;
     resizing = { center: { x: cx, y: cy }, base, layerId: layer.id };
   });
 });
@@ -1562,8 +1511,8 @@ window.addEventListener('pointermove', (e) => {
   const layer = state.layers.find((l) => l.id === resizing.layerId);
   if (!layer) { resizing = null; return; }
   const wrapRect = canvasWrap.getBoundingClientRect();
-  const px = ((e.clientX - wrapRect.left) / wrapRect.width) * TEX_W;
-  const py = ((e.clientY - wrapRect.top)  / wrapRect.height) * TEX_H;
+  const px = ((e.clientX - wrapRect.left) / wrapRect.width) * EDITOR_W;
+  const py = ((e.clientY - wrapRect.top)  / wrapRect.height) * EDITOR_H;
   const halfW = Math.abs(px - resizing.center.x);
   const halfH = Math.abs(py - resizing.center.y);
   const ratio = resizing.base.imgRatio;
@@ -1576,6 +1525,7 @@ window.addEventListener('pointermove', (e) => {
   let newScale = bboxW / resizing.base.baseDrawW;
   newScale = Math.max(0.2, Math.min(5.0, newScale));
   layer.scale = newScale;
+  clampLayerOffsets(layer);
   drawTexture();
   syncScaleSlider();
 });
@@ -1595,42 +1545,35 @@ function syncAllSliders() {
 document.getElementById('qa-center')?.addEventListener('click', () => {
   const layer = getActiveLayer();
   if (!layer) return;
-  // "Centrar" snaps the design to the Frente placement zone (canvas-25%)
-  // and rotates the camera to 270° to face it head-on.
-  layer.offsetX = -0.25;
+  // "Centrar" only zeroes the design's offsets within the print area.
+  // The 3D camera is independent — user controls it via orbit drag.
+  layer.offsetX = 0;
   layer.offsetY = 0;
   drawTexture();
   syncAllSliders();
-  positionCameraForOffset(-0.25);
 });
 
-// Ajustar: reset scale to "fit" (1.0) and re-center vertically. Horizontal
-// position is preserved so the user can keep the image on the left/center/
-// right side of the mug.
+// Ajustar: scale = 1 (fit), re-center vertically. Horizontal offset preserved.
 document.getElementById('qa-fit')?.addEventListener('click', () => {
   const layer = getActiveLayer();
   if (!layer) return;
   layer.scale = 1;
   layer.offsetY = 0;
+  clampLayerOffsets(layer);
   drawTexture();
   syncAllSliders();
 });
 
-// Llenar: scale up so the image fills the print area on its tighter axis,
-// then center both axes — at fill scale the image is bigger than the print
-// area, so any off-center offset would push pixels off the mug.
+// Llenar: scale so the image's drawn width = print area width (cover-width
+// guarantee). The image always fills the canvas edge-to-edge horizontally.
+// Vertical: portrait/most landscapes overflow top/bottom (clipped by CSS);
+// very wide panoramas (aspect > 2.41) sit centered with vertical margin.
 document.getElementById('qa-fill')?.addEventListener('click', () => {
   const layer = getActiveLayer();
   if (!layer) return;
   const base = getBaseDraw();
   if (!base) return;
-  const { wFrac, hFrac } = getPrintAreaFracs();
-  const printAreaW = TEX_W * wFrac;
-  const printAreaH = TEX_H * hFrac;
-  const fillScale = Math.max(
-    printAreaW / base.baseDrawW,
-    printAreaH / base.baseDrawH,
-  );
+  const fillScale = EDITOR_W / base.baseDrawW;
   layer.scale = Math.min(5.0, fillScale);
   layer.offsetX = 0;
   layer.offsetY = 0;
@@ -1663,9 +1606,6 @@ function setActiveLayer(layerId) {
   syncAllSliders();
   renderLayerList();
   renderActiveLayerSection();
-  // Camera follows the newly-selected layer so the user immediately sees
-  // it centered in the 3D preview.
-  positionCameraForOffset(layer.offsetX);
 }
 
 // Re-render the layer list panel from state. Called on add / remove /
