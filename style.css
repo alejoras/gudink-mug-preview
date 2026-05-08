@@ -693,12 +693,16 @@ input, select { font: inherit; }
   display: none;
 }
 
-/* Placement Zone Guide — covers the entire print area when no layers exist
-   to indicate "your design goes here". Hidden as soon as a layer is added. */
+/* Placement Zone Guide — fixed reference for the mug's "Frente" zone.
+   JS shows it only while a layer is selected; it stays fixed while the
+   selected image bbox moves or resizes. */
 .ed2-placement-guide {
   position: absolute;
-  inset: 0;
-  border: 1.5px dotted rgba(0, 0, 0, 0.45);
+  top: 12%;
+  bottom: 12%;
+  left: 8.33%;
+  right: 58.33%;
+  border: 1.5px dotted rgba(0, 0, 0, 0.55);
   background: transparent;
   border-radius: 2px;
   pointer-events: none;
